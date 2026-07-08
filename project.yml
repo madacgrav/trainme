@@ -1,0 +1,35 @@
+name: TrainMe
+options:
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+targets:
+  TrainMe:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.trainme.app
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: Sources/Info.plist
+  TrainMeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: TrainMe
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  TrainMe:
+    build:
+      targets:
+        TrainMe: all
+    test:
+      targets: [TrainMeTests]
