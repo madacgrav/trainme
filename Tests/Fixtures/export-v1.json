@@ -1,0 +1,135 @@
+{
+  "schemaVersion": 1,
+  "exportedAt": "2026-07-09T12:00:00Z",
+  "appVersion": "1.0",
+  "clients": [
+    {
+      "id": "11111111-1111-1111-1111-111111111111",
+      "name": "Sam Jones",
+      "phoneE164": "+15551234567",
+      "goal": "Strength",
+      "injuries": "Left knee",
+      "notes": "Prefers mornings",
+      "isArchived": false,
+      "createdAt": "2026-06-01T09:00:00Z",
+      "updatedAt": "2026-06-01T09:00:00Z"
+    },
+    {
+      "id": "22222222-2222-2222-2222-222222222222",
+      "name": "Alex Smith",
+      "phoneE164": "+15559876543",
+      "isArchived": false,
+      "createdAt": "2026-06-02T09:00:00Z",
+      "updatedAt": "2026-06-02T09:00:00Z"
+    }
+  ],
+  "exercises": [
+    {
+      "id": "33333333-3333-3333-3333-333333333333",
+      "name": "Back Squat",
+      "category": "strength",
+      "metrics": 7,
+      "defaultUnit": "lb",
+      "isCustom": false,
+      "createdAt": "2026-06-01T09:00:00Z",
+      "updatedAt": "2026-06-01T09:00:00Z"
+    },
+    {
+      "id": "44444444-4444-4444-4444-444444444444",
+      "name": "Plank",
+      "category": "bodyweight",
+      "metrics": 8,
+      "defaultUnit": "sec",
+      "isCustom": false,
+      "createdAt": "2026-06-01T09:00:00Z",
+      "updatedAt": "2026-06-01T09:00:00Z"
+    },
+    {
+      "id": "55555555-5555-5555-5555-555555555555",
+      "name": "Sam's Special Row",
+      "category": "strength",
+      "metrics": 7,
+      "defaultUnit": "lb",
+      "isCustom": true,
+      "createdAt": "2026-06-05T09:00:00Z",
+      "updatedAt": "2026-06-05T09:00:00Z"
+    }
+  ],
+  "workouts": [
+    {
+      "id": "66666666-6666-6666-6666-666666666666",
+      "name": "Leg Day A",
+      "entries": [
+        {
+          "id": "77777777-7777-7777-7777-777777777777",
+          "exerciseId": "33333333-3333-3333-3333-333333333333",
+          "order": 0,
+          "targetSets": 3,
+          "targetReps": 5,
+          "targetWeight": 185
+        },
+        {
+          "id": "88888888-8888-8888-8888-888888888888",
+          "exerciseId": "44444444-4444-4444-4444-444444444444",
+          "order": 1,
+          "targetDuration": 60
+        }
+      ],
+      "createdAt": "2026-06-03T09:00:00Z",
+      "updatedAt": "2026-06-03T09:00:00Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "99999999-9999-9999-9999-999999999999",
+      "clientId": "11111111-1111-1111-1111-111111111111",
+      "startAt": "2026-06-10T14:00:00Z",
+      "endAt": "2026-06-10T15:00:00Z",
+      "status": "completed",
+      "notes": "Great session",
+      "instances": [
+        {
+          "id": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+          "sourceWorkoutId": "66666666-6666-6666-6666-666666666666",
+          "name": "Leg Day A",
+          "plannedEntries": [
+            {
+              "id": "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB",
+              "exerciseId": "33333333-3333-3333-3333-333333333333",
+              "order": 0,
+              "targetSets": 3,
+              "targetReps": 5,
+              "targetWeight": 185
+            }
+          ]
+        }
+      ],
+      "createdAt": "2026-06-09T09:00:00Z",
+      "updatedAt": "2026-06-10T15:00:00Z"
+    }
+  ],
+  "setRecords": [
+    {
+      "id": "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC",
+      "workoutInstanceId": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+      "exerciseId": "33333333-3333-3333-3333-333333333333",
+      "setIndex": 0,
+      "weight": 185,
+      "reps": 5,
+      "performedAt": "2026-06-10T14:10:00Z",
+      "createdAt": "2026-06-10T14:10:00Z",
+      "updatedAt": "2026-06-10T14:10:00Z"
+    },
+    {
+      "id": "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD",
+      "workoutInstanceId": "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA",
+      "exerciseId": "33333333-3333-3333-3333-333333333333",
+      "setIndex": 1,
+      "weight": 195,
+      "reps": 3,
+      "performedAt": "2026-06-10T14:20:00Z",
+      "createdAt": "2026-06-10T14:20:00Z",
+      "updatedAt": "2026-06-10T14:20:00Z"
+    }
+  ]
+}

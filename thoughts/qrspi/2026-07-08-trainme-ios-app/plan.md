@@ -590,7 +590,7 @@ this file** — it is the backward-compat contract.
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; round-trip + newer-version-reject + golden-fixture tests green
+- [x] `xcodebuild test` passes; round-trip + newer-version-reject + golden-fixture tests green (49 tests)
 #### Manual
 - [ ] Export to Files; reimport (merge, then replace); app requires Face ID when returning from background; onboarding shows data-loss notice
 
