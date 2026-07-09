@@ -48,10 +48,40 @@ struct ClientReportView: View {
         }
         .navigationTitle("\(viewModel.client.name) — Progress")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await viewModel.load() }
-        .onChange(of: viewModel.selectedExerciseId) {
-            Task { await viewModel.loadChart() }
+        .toolbar {
+            if let pdfURL {
+                ShareLink(item: pdfURL) {
+                    Label("Share report", systemImage: "square.and.arrow.up")
+                }
+            }
         }
+        .task {
+            await viewModel.load()
+            renderPDF()
+        }
+        .onChange(of: viewModel.selectedExerciseId) {
+            Task {
+                await viewModel.loadChart()
+                renderPDF()
+            }
+        }
+    }
+
+    @State private var pdfURL: URL?
+
+    private func renderPDF() {
+        guard viewModel.hasEnoughData,
+              let exercise = viewModel.exercisesWithData.first(where: { $0.id == viewModel.selectedExerciseId })
+        else {
+            pdfURL = nil
+            return
+        }
+        pdfURL = try? ReportExporter.renderPDF(
+            clientName: viewModel.client.name,
+            exerciseName: exercise.name,
+            points: viewModel.points,
+            personalBest: viewModel.personalBest
+        )
     }
 }
 

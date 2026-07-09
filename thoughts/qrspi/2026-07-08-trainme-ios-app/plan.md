@@ -505,7 +505,7 @@ protocol CalendarSyncing: Sendable {
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; recurrence-mapping test green
+- [x] `xcodebuild test` passes; recurrence-mapping test green (44 tests)
 #### Manual (simulator/device)
 - [ ] Session appears in system calendar; cancelling removes it; recurring series shows Tue/Thu in Calendar; report shares as PDF via the share sheet (Gmail/Messages targets)
 

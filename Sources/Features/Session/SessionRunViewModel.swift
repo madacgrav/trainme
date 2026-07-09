@@ -72,6 +72,13 @@ final class SessionRunViewModel {
 
     func setStatus(_ status: SessionStatus) async {
         try? await sessionRepo.setStatus(id: session.id, status)
+        // Cancelled sessions leave the system calendar (one-way push cleanup).
+        // Series occurrences share one recurring event, so only remove when
+        // this session is not part of a series.
+        if status == .cancelled, session.seriesId == nil, let eventId = session.eventIdentifier {
+            try? await EventKitCalendarService().remove(eventIdentifier: eventId)
+            try? await sessionRepo.setEventIdentifier(id: session.id, nil)
+        }
         if let refreshed = try? await sessionRepo.get(id: session.id) {
             session = refreshed
         }

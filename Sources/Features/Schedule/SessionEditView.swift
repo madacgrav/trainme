@@ -16,20 +16,24 @@ struct SessionEditView: View {
     @State private var repeats = false
     @State private var repeatWeekdays: Set<Int> = []
     @State private var repeatWeeks = 8
+    @State private var addToCalendar = false
 
     private let clientRepo: any ClientRepository
     private let workoutRepo: any WorkoutRepository
+    private let calendar: any CalendarSyncing
 
     init(
         sessionRepo: any SessionRepository,
         clientRepo: any ClientRepository,
         workoutRepo: any WorkoutRepository,
+        calendar: any CalendarSyncing = EventKitCalendarService(),
         initialDate: Date,
         onSaved: @escaping () -> Void
     ) {
         self.sessionRepo = sessionRepo
         self.clientRepo = clientRepo
         self.workoutRepo = workoutRepo
+        self.calendar = calendar
         self.onSaved = onSaved
         let calendar = Calendar.current
         let base = calendar.startOfDay(for: initialDate)
@@ -101,6 +105,11 @@ struct SessionEditView: View {
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
                 }
+                Section {
+                    Toggle("Add to iPhone calendar", isOn: $addToCalendar)
+                } footer: {
+                    Text("Pushes the session to your default calendar (syncs to Google Calendar if that's your default account).")
+                }
             }
             .navigationTitle("New Session")
             .navigationBarTitleDisplayMode(.inline)
@@ -143,6 +152,7 @@ struct SessionEditView: View {
             updatedAt: .now
         )
         let workoutIds = Array(selectedWorkoutIds)
+        let clientName = clients.first { $0.id == clientId }?.name ?? "Client"
         if repeats {
             let rule = AppRecurrence(
                 frequency: .weekly,
@@ -151,9 +161,20 @@ struct SessionEditView: View {
                 endDate: nil,
                 occurrenceCount: nil
             )
-            try? await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
+            let seriesId = try? await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
+            if addToCalendar, let seriesId, await calendar.requestAccess() {
+                var boundedRule = rule
+                boundedRule.occurrenceCount = repeatWeeks * max(1, rule.weekdays.count)
+                if let eventId = try? await calendar.push(dto, clientName: clientName, recurrence: boundedRule) {
+                    try? await sessionRepo.setEventIdentifierForSeries(seriesId, eventId)
+                }
+            }
         } else {
             try? await sessionRepo.schedule(dto, attaching: workoutIds)
+            if addToCalendar, await calendar.requestAccess(),
+               let eventId = try? await calendar.push(dto, clientName: clientName, recurrence: nil) {
+                try? await sessionRepo.setEventIdentifier(id: dto.id, eventId)
+            }
         }
     }
 }

@@ -20,5 +20,9 @@
 	<string>1</string>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>TrainMe adds your training sessions to your calendar and removes them when cancelled.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>TrainMe locks your client data behind Face ID.</string>
 </dict>
 </plist>

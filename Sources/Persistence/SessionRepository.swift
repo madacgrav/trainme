@@ -6,18 +6,21 @@ protocol SessionRepository: Sendable {
     /// WorkoutInstance (PRD §4.2: instances are frozen copies).
     func schedule(_ dto: SessionDTO, attaching workoutIds: [UUID]) async throws
     /// Materializes a recurring series as individual sessions sharing a seriesId.
+    /// Returns the seriesId so callers can link a calendar event to the series.
+    @discardableResult
     func scheduleSeries(
         _ dto: SessionDTO,
         recurrence: AppRecurrence,
         attaching workoutIds: [UUID],
         horizonWeeks: Int
-    ) async throws
+    ) async throws -> UUID
     func get(id: UUID) async throws -> SessionDTO?
     func sessions(from: Date, to: Date) async throws -> [SessionDTO]
     func upcoming(after: Date, limit: Int) async throws -> [SessionDTO]
     func forClient(_ clientId: UUID) async throws -> [SessionDTO]
     func setStatus(id: UUID, _ status: SessionStatus) async throws
     func setEventIdentifier(id: UUID, _ eventIdentifier: String?) async throws
+    func setEventIdentifierForSeries(_ seriesId: UUID, _ eventIdentifier: String?) async throws
     func updateNotes(id: UUID, _ notes: String?) async throws
     func delete(id: UUID) async throws
 
@@ -82,12 +85,13 @@ actor SwiftDataSessionRepository: SessionRepository {
         try modelContext.save()
     }
 
+    @discardableResult
     func scheduleSeries(
         _ dto: SessionDTO,
         recurrence: AppRecurrence,
         attaching workoutIds: [UUID],
         horizonWeeks: Int = 12
-    ) async throws {
+    ) async throws -> UUID {
         let horizon = Calendar.current.date(byAdding: .weekOfYear, value: horizonWeeks, to: dto.startAt) ?? dto.startAt
         let occurrences = expandRecurrence(recurrence, from: dto.startAt, to: horizon)
         let seriesId = UUID()
@@ -113,6 +117,7 @@ actor SwiftDataSessionRepository: SessionRepository {
             model.recurrenceData = recurrenceData
         }
         try modelContext.save()
+        return seriesId
     }
 
     func get(id: UUID) async throws -> SessionDTO? {
@@ -158,6 +163,17 @@ actor SwiftDataSessionRepository: SessionRepository {
         guard let session = try fetch(id: id) else { return }
         session.eventIdentifier = eventIdentifier
         session.updatedAt = .now
+        try modelContext.save()
+    }
+
+    func setEventIdentifierForSeries(_ seriesId: UUID, _ eventIdentifier: String?) async throws {
+        let sessions = try modelContext.fetch(
+            FetchDescriptor<Session>(predicate: #Predicate { $0.seriesId == seriesId })
+        )
+        for session in sessions {
+            session.eventIdentifier = eventIdentifier
+            session.updatedAt = .now
+        }
         try modelContext.save()
     }
 
