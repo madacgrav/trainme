@@ -219,7 +219,7 @@ header + placeholder sections for upcoming/recent sessions & reports, filled lat
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; new client/phone tests green
+- [x] `xcodebuild test` passes; new client/phone tests green (10 tests)
 #### Manual
 - [ ] Add client with goal/injuries/notes; edit; search roster; archive removes from active list; invalid phone rejected
 

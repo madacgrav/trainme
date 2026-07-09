@@ -4,19 +4,15 @@ import Observation
 @MainActor
 @Observable
 final class ClientListViewModel {
-    private let repo: any ClientRepository
+    let repository: any ClientRepository
     var clients: [ClientDTO] = []
+    var query: String = ""
 
     init(repo: any ClientRepository) {
-        self.repo = repo
+        self.repository = repo
     }
 
     func load() async {
-        clients = (try? await repo.all()) ?? []
-    }
-
-    func add(name: String) async {
-        try? await repo.upsert(ClientDTO(id: UUID(), name: name, createdAt: .now, updatedAt: .now))
-        await load()
+        clients = (try? await repository.search(query)) ?? []
     }
 }

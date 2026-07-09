@@ -3,7 +3,10 @@ import SwiftData
 
 protocol ClientRepository: Sendable {
     func all() async throws -> [ClientDTO]
+    func allIncludingArchived() async throws -> [ClientDTO]
+    func search(_ query: String) async throws -> [ClientDTO]
     func upsert(_ dto: ClientDTO) async throws
+    func setArchived(id: UUID, _ archived: Bool) async throws
     func delete(id: UUID) async throws
 }
 
@@ -11,7 +14,26 @@ protocol ClientRepository: Sendable {
 actor SwiftDataClientRepository: ClientRepository {
     func all() async throws -> [ClientDTO] {
         try modelContext
+            .fetch(FetchDescriptor<Client>(
+                predicate: #Predicate { !$0.isArchived },
+                sortBy: [SortDescriptor(\.name)]
+            ))
+            .map(ClientDTO.init)
+    }
+
+    func allIncludingArchived() async throws -> [ClientDTO] {
+        try modelContext
             .fetch(FetchDescriptor<Client>(sortBy: [SortDescriptor(\.name)]))
+            .map(ClientDTO.init)
+    }
+
+    func search(_ query: String) async throws -> [ClientDTO] {
+        guard !query.isEmpty else { return try await all() }
+        return try modelContext
+            .fetch(FetchDescriptor<Client>(
+                predicate: #Predicate { !$0.isArchived && $0.name.localizedStandardContains(query) },
+                sortBy: [SortDescriptor(\.name)]
+            ))
             .map(ClientDTO.init)
     }
 
@@ -19,8 +41,15 @@ actor SwiftDataClientRepository: ClientRepository {
         if let existing = try fetch(id: dto.id) {
             dto.apply(to: existing)
         } else {
-            modelContext.insert(Client(id: dto.id, name: dto.name, createdAt: dto.createdAt, updatedAt: dto.updatedAt))
+            modelContext.insert(dto.toModel())
         }
+        try modelContext.save()
+    }
+
+    func setArchived(id: UUID, _ archived: Bool) async throws {
+        guard let existing = try fetch(id: id) else { return }
+        existing.isArchived = archived
+        existing.updatedAt = .now
         try modelContext.save()
     }
 
