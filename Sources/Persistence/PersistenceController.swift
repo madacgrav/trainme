@@ -5,6 +5,7 @@ enum PersistenceController {
     /// Extended each phase as new @Model types are added.
     static let schemaTypes: [any PersistentModel.Type] = [
         Client.self, Exercise.self, Workout.self, WorkoutEntry.self,
+        Session.self, WorkoutInstance.self, PlannedEntry.self,
     ]
 
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {

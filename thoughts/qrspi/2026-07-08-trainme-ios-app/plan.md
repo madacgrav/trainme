@@ -355,7 +355,7 @@ scheduling deep-copies template (edit template afterward → instance unchanged)
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; template-copy isolation + recurrence expansion tests green
+- [x] `xcodebuild test` passes; template-copy isolation + recurrence expansion tests green (27 tests)
 #### Manual
 - [ ] Create a session, see it on the calendar; create Tue/Thu recurring series; edit a template and confirm the scheduled instance is untouched
 

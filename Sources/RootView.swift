@@ -6,6 +6,13 @@ struct RootView: View {
 
     var body: some View {
         TabView {
+            Tab("Schedule", systemImage: "calendar") {
+                ScheduleView(viewModel: ScheduleViewModel(
+                    sessionRepo: SwiftDataSessionRepository(modelContainer: container),
+                    clientRepo: SwiftDataClientRepository(modelContainer: container),
+                    workoutRepo: SwiftDataWorkoutRepository(modelContainer: container)
+                ))
+            }
             Tab("Clients", systemImage: "person.2") {
                 ClientListView(viewModel: ClientListViewModel(repo: SwiftDataClientRepository(modelContainer: container)))
             }
