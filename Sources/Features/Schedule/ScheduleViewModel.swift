@@ -7,15 +7,22 @@ final class ScheduleViewModel {
     let sessionRepo: any SessionRepository
     let clientRepo: any ClientRepository
     let workoutRepo: any WorkoutRepository
+    let exerciseRepo: any ExerciseRepository
 
     var selectedDate: Date = .now
     var sessionsForDay: [SessionDTO] = []
     var clientNames: [UUID: String] = [:]
 
-    init(sessionRepo: any SessionRepository, clientRepo: any ClientRepository, workoutRepo: any WorkoutRepository) {
+    init(
+        sessionRepo: any SessionRepository,
+        clientRepo: any ClientRepository,
+        workoutRepo: any WorkoutRepository,
+        exerciseRepo: any ExerciseRepository
+    ) {
         self.sessionRepo = sessionRepo
         self.clientRepo = clientRepo
         self.workoutRepo = workoutRepo
+        self.exerciseRepo = exerciseRepo
     }
 
     func load() async {

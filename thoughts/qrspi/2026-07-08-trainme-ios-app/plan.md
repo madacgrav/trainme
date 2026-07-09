@@ -393,7 +393,7 @@ no-show buttons call `setStatus`.
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; recording + lastSet tests green
+- [x] `xcodebuild test` passes; recording + lastSet tests green (30 tests)
 #### Manual
 - [ ] Run a session; log sets via steppers + repeat-last; treadmill exercise shows no weight field; mark completed; reopen shows saved sets
 

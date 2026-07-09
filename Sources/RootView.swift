@@ -10,7 +10,8 @@ struct RootView: View {
                 ScheduleView(viewModel: ScheduleViewModel(
                     sessionRepo: SwiftDataSessionRepository(modelContainer: container),
                     clientRepo: SwiftDataClientRepository(modelContainer: container),
-                    workoutRepo: SwiftDataWorkoutRepository(modelContainer: container)
+                    workoutRepo: SwiftDataWorkoutRepository(modelContainer: container),
+                    exerciseRepo: SwiftDataExerciseRepository(modelContainer: container)
                 ))
             }
             Tab("Clients", systemImage: "person.2") {

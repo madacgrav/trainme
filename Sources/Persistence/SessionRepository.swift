@@ -20,6 +20,14 @@ protocol SessionRepository: Sendable {
     func setEventIdentifier(id: UUID, _ eventIdentifier: String?) async throws
     func updateNotes(id: UUID, _ notes: String?) async throws
     func delete(id: UUID) async throws
+
+    // Recording (Phase 5)
+    func recordSet(_ dto: SetRecordDTO) async throws
+    func deleteSet(id: UUID) async throws
+    func setsFor(instanceId: UUID) async throws -> [SetRecordDTO]
+    /// Most recent set this client performed for the exercise, across sessions —
+    /// powers "repeat last set".
+    func lastSet(clientId: UUID, exerciseId: UUID) async throws -> SetRecordDTO?
 }
 
 /// Expands a recurrence rule into concrete occurrence dates. Pure function so
@@ -164,6 +172,46 @@ actor SwiftDataSessionRepository: SessionRepository {
         guard let session = try fetch(id: id) else { return }
         modelContext.delete(session)
         try modelContext.save()
+    }
+
+    // MARK: - Recording
+
+    func recordSet(_ dto: SetRecordDTO) async throws {
+        modelContext.insert(dto.toModel())
+        try modelContext.save()
+    }
+
+    func deleteSet(id: UUID) async throws {
+        guard let record = try modelContext
+            .fetch(FetchDescriptor<SetRecord>(predicate: #Predicate { $0.id == id }))
+            .first
+        else { return }
+        modelContext.delete(record)
+        try modelContext.save()
+    }
+
+    func setsFor(instanceId: UUID) async throws -> [SetRecordDTO] {
+        try modelContext
+            .fetch(FetchDescriptor<SetRecord>(
+                predicate: #Predicate { $0.workoutInstanceId == instanceId },
+                sortBy: [SortDescriptor(\.exerciseId), SortDescriptor(\.setIndex)]
+            ))
+            .map(SetRecordDTO.init)
+    }
+
+    func lastSet(clientId: UUID, exerciseId: UUID) async throws -> SetRecordDTO? {
+        let clientSessions = try modelContext.fetch(
+            FetchDescriptor<Session>(predicate: #Predicate { $0.clientId == clientId })
+        )
+        let instanceIds = clientSessions.flatMap { $0.instances.map(\.id) }
+        guard !instanceIds.isEmpty else { return nil }
+
+        var descriptor = FetchDescriptor<SetRecord>(
+            predicate: #Predicate { instanceIds.contains($0.workoutInstanceId) && $0.exerciseId == exerciseId },
+            sortBy: [SortDescriptor(\.performedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first.map(SetRecordDTO.init)
     }
 
     // MARK: - Private

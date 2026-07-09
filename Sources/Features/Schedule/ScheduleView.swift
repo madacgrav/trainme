@@ -12,7 +12,16 @@ struct ScheduleView: View {
                     .padding(.horizontal)
 
                 List(viewModel.sessionsForDay) { session in
-                    SessionRow(session: session, clientName: viewModel.clientNames[session.clientId] ?? "Client")
+                    NavigationLink {
+                        SessionRunView(viewModel: SessionRunViewModel(
+                            sessionRepo: viewModel.sessionRepo,
+                            exerciseRepo: viewModel.exerciseRepo,
+                            session: session,
+                            clientName: viewModel.clientNames[session.clientId] ?? "Client"
+                        ))
+                    } label: {
+                        SessionRow(session: session, clientName: viewModel.clientNames[session.clientId] ?? "Client")
+                    }
                 }
                 .overlay {
                     if viewModel.sessionsForDay.isEmpty {
