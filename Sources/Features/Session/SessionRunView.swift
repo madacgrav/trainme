@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SessionRunView: View {
     @State var viewModel: SessionRunViewModel
+    @State private var showingTextReminder = false
 
     var body: some View {
         List {
@@ -39,6 +40,25 @@ struct SessionRunView: View {
             }
         }
         .navigationTitle(viewModel.clientName)
+        .toolbar {
+            if let phone = viewModel.clientPhone, !phone.isEmpty, MessagingService.canSendText {
+                Button("Text reminder", systemImage: "message") {
+                    showingTextReminder = true
+                }
+            }
+        }
+        .sheet(isPresented: $showingTextReminder) {
+            if let phone = viewModel.clientPhone {
+                MessageComposeView(
+                    recipient: phone,
+                    body: MessagingService.reminderBody(
+                        clientName: viewModel.clientName,
+                        sessionDate: viewModel.session.startAt
+                    )
+                )
+                .ignoresSafeArea()
+            }
+        }
         .task { await viewModel.load() }
     }
 

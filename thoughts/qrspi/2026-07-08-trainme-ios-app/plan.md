@@ -467,7 +467,7 @@ keeps pending ≤64 (pure selection logic tested without UNUserNotificationCente
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; nearest-N cap test green
+- [x] `xcodebuild test` passes; nearest-N cap test green (40 tests)
 #### Manual (simulator/device)
 - [ ] Notification fires before a session (short-interval test trigger acceptable); "Text reminder" opens prefilled Messages sheet
 

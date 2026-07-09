@@ -8,6 +8,7 @@ final class SessionRunViewModel {
     let exerciseRepo: any ExerciseRepository
     var session: SessionDTO
     var clientName: String
+    var clientPhone: String?
     var exercises: [UUID: ExerciseDTO] = [:]
     var recordedSets: [UUID: [SetRecordDTO]] = [:]  // keyed by instance id
 
@@ -15,12 +16,14 @@ final class SessionRunViewModel {
         sessionRepo: any SessionRepository,
         exerciseRepo: any ExerciseRepository,
         session: SessionDTO,
-        clientName: String
+        clientName: String,
+        clientPhone: String? = nil
     ) {
         self.sessionRepo = sessionRepo
         self.exerciseRepo = exerciseRepo
         self.session = session
         self.clientName = clientName
+        self.clientPhone = clientPhone
     }
 
     func load() async {

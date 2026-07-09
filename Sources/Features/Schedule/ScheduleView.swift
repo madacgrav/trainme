@@ -17,7 +17,8 @@ struct ScheduleView: View {
                             sessionRepo: viewModel.sessionRepo,
                             exerciseRepo: viewModel.exerciseRepo,
                             session: session,
-                            clientName: viewModel.clientNames[session.clientId] ?? "Client"
+                            clientName: viewModel.clientNames[session.clientId] ?? "Client",
+                            clientPhone: viewModel.clientPhones[session.clientId]
                         ))
                     } label: {
                         SessionRow(session: session, clientName: viewModel.clientNames[session.clientId] ?? "Client")

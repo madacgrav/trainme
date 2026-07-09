@@ -11,7 +11,8 @@ struct RootView: View {
                     sessionRepo: SwiftDataSessionRepository(modelContainer: container),
                     clientRepo: SwiftDataClientRepository(modelContainer: container),
                     workoutRepo: SwiftDataWorkoutRepository(modelContainer: container),
-                    exerciseRepo: SwiftDataExerciseRepository(modelContainer: container)
+                    exerciseRepo: SwiftDataExerciseRepository(modelContainer: container),
+                    notifications: LocalNotificationService()
                 ))
             }
             Tab("Clients", systemImage: "person.2") {
@@ -36,6 +37,7 @@ struct RootView: View {
             await Task.detached {
                 try? await SeedImporter.seedIfEmpty(repo: SwiftDataExerciseRepository(modelContainer: container))
             }.value
+            _ = await LocalNotificationService().requestAuthorization()
         }
     }
 }
