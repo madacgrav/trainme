@@ -265,7 +265,7 @@ seed loads once, idempotent on second call; prefix search.
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; seed idempotency + search tests green
+- [x] `xcodebuild test` passes; seed idempotency + search tests green (14 tests)
 #### Manual
 - [ ] First launch shows seeded exercises; add custom "BB Bench (Sam variant)"; search finds both
 

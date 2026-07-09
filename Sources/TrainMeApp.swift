@@ -20,7 +20,7 @@ struct TrainMeApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ClientListView(viewModel: ClientListViewModel(repo: SwiftDataClientRepository(modelContainer: container)))
+            RootView(container: container)
         }
     }
 }
