@@ -5,10 +5,19 @@ import Observation
 @Observable
 final class ClientDetailViewModel {
     let repository: any ClientRepository
+    let exerciseRepo: any ExerciseRepository
+    let reporting: any ReportingQueries
     var client: ClientDTO
 
-    init(repo: any ClientRepository, client: ClientDTO) {
+    init(
+        repo: any ClientRepository,
+        exerciseRepo: any ExerciseRepository,
+        reporting: any ReportingQueries,
+        client: ClientDTO
+    ) {
         self.repository = repo
+        self.exerciseRepo = exerciseRepo
+        self.reporting = reporting
         self.client = client
     }
 

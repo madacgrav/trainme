@@ -8,7 +8,12 @@ struct ClientListView: View {
         NavigationStack {
             List(viewModel.clients) { client in
                 NavigationLink {
-                    ClientDetailView(viewModel: ClientDetailViewModel(repo: viewModel.repository, client: client))
+                    ClientDetailView(viewModel: ClientDetailViewModel(
+                        repo: viewModel.repository,
+                        exerciseRepo: viewModel.exerciseRepo,
+                        reporting: viewModel.reporting,
+                        client: client
+                    ))
                 } label: {
                     VStack(alignment: .leading) {
                         Text(client.name)

@@ -27,8 +27,13 @@ struct ClientDetailView: View {
                     .foregroundStyle(.secondary)
             }
             Section("Progress Reports") {
-                Text("Reports arrive in a later phase")
-                    .foregroundStyle(.secondary)
+                NavigationLink("View progress charts") {
+                    ClientReportView(viewModel: ClientReportViewModel(
+                        reporting: viewModel.reporting,
+                        exerciseRepo: viewModel.exerciseRepo,
+                        client: viewModel.client
+                    ))
+                }
             }
             if viewModel.client.isArchived {
                 Section {

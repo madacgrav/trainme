@@ -432,7 +432,7 @@ progression; PB correct; est1RM formula; `count < 2` case flagged.
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; exclusion + PB + est1RM tests green
+- [x] `xcodebuild test` passes; exclusion + PB + est1RM tests green (35 tests)
 #### Manual
 - [ ] Chart shows progression across recorded sessions; PB marker appears; a 1-point exercise shows "not enough data yet"
 
