@@ -9,6 +9,12 @@ struct RootView: View {
             Tab("Clients", systemImage: "person.2") {
                 ClientListView(viewModel: ClientListViewModel(repo: SwiftDataClientRepository(modelContainer: container)))
             }
+            Tab("Workouts", systemImage: "list.clipboard") {
+                WorkoutListView(viewModel: WorkoutListViewModel(
+                    workoutRepo: SwiftDataWorkoutRepository(modelContainer: container),
+                    exerciseRepo: SwiftDataExerciseRepository(modelContainer: container)
+                ))
+            }
             Tab("Exercises", systemImage: "dumbbell") {
                 ExerciseListView(viewModel: ExerciseListViewModel(repo: SwiftDataExerciseRepository(modelContainer: container)))
             }

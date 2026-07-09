@@ -305,7 +305,7 @@ produces distinct UUIDs and deep copy; reorder persists order.
 
 ### Verification
 #### Automated
-- [ ] `xcodebuild test` passes; duplicate/reorder tests green
+- [x] `xcodebuild test` passes; duplicate/reorder tests green (18 tests)
 #### Manual
 - [ ] Build "Leg Day A" with targets; duplicate; edit copy; original unchanged; reorder entries
 
