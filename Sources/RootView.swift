@@ -56,7 +56,7 @@ struct RootView: View {
                 ExerciseListView(viewModel: ExerciseListViewModel(repo: SwiftDataExerciseRepository(modelContainer: container)))
             }
             Tab("Settings", systemImage: "gearshape", value: 4) {
-                SettingsView(archive: DataArchiveActor(modelContainer: container))
+                SettingsView(archive: DataArchiveActor(modelContainer: container), reminders: reminders)
             }
             .badge(exportDue ? Text("!") : nil)
         }

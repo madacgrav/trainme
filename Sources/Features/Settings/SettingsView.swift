@@ -1,10 +1,13 @@
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
+import UserNotifications
 
 struct SettingsView: View {
     let archive: any DataArchiving
+    let reminders: ReminderCoordinator
 
+    @Environment(\.scenePhase) private var scenePhase
     @AppStorage("lastExportAt") private var lastExportAt: Double = 0
     @AppStorage("defaultWeightUnit") private var defaultWeightUnit: String = Unit.lb.rawValue
     @State private var exportURL: URL?
@@ -14,6 +17,15 @@ struct SettingsView: View {
     @State private var showingModeDialog = false
     @State private var showingReplaceConfirm = false
     @State private var statusMessage: String?
+
+    private var notificationStatusText: String {
+        switch reminders.notificationStatus {
+        case .authorized, .provisional, .ephemeral: "Allowed"
+        case .denied: "Denied"
+        case .notDetermined: "Not asked yet"
+        @unknown default: "Unknown"
+        }
+    }
 
     private var lastExportText: String {
         lastExportAt == 0
@@ -58,6 +70,18 @@ struct SettingsView: View {
                     Text("Your data lives only on this iPhone. Exporting to a file is the ONLY backup — a lost or broken phone otherwise means losing everything. Export regularly and keep the file somewhere safe (iCloud Drive, email it to yourself).")
                 }
 
+                Section {
+                    PermissionRow(
+                        title: "Notifications",
+                        status: notificationStatusText,
+                        isDenied: reminders.notificationStatus == .denied
+                    )
+                } header: {
+                    Text("Permissions")
+                } footer: {
+                    Text("Session reminders fire 24 hours and 1 hour before each session.")
+                }
+
                 if let statusMessage {
                     Section {
                         Text(statusMessage).foregroundStyle(.secondary)
@@ -65,6 +89,13 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
+            .task { await reminders.refreshPermissionStatus() }
+            .onChange(of: scenePhase) { _, phase in
+                // Coming back from the system Settings app must refresh the rows.
+                if phase == .active {
+                    Task { await reminders.refreshPermissionStatus() }
+                }
+            }
             .fileExporter(
                 isPresented: $showingExporter,
                 item: exportURL,
@@ -140,6 +171,23 @@ struct SettingsView: View {
         } catch {
             Log.archive.error("Import failed: \(error.localizedDescription)")
             statusMessage = "Import failed. Please try again."
+        }
+    }
+}
+
+/// One row of the Permissions section: status text plus a deep link when denied.
+struct PermissionRow: View {
+    let title: String
+    let status: String
+    let isDenied: Bool
+
+    var body: some View {
+        HStack {
+            LabeledContent(title, value: status)
+            if isDenied, let url = URL(string: UIApplication.openSettingsURLString) {
+                Link("Open Settings", destination: url)
+                    .font(.footnote)
+            }
         }
     }
 }

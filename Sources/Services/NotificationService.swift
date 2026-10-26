@@ -53,16 +53,32 @@ func sessionAlertIdentifiers(from pending: [String]) -> [String] {
     pending.filter { $0.hasPrefix("sess-") }
 }
 
+/// Whether alerts may be added for this status. Pure so it is unit-testable.
+func canScheduleAlerts(_ status: UNAuthorizationStatus) -> Bool {
+    status == .authorized || status == .provisional
+}
+
 protocol NotificationScheduling: Sendable {
     func requestAuthorization() async -> Bool
-    /// Replaces all pending session alerts with the nearest-N set.
+    func authorizationStatus() async -> UNAuthorizationStatus
+    /// Replaces all pending session alerts with the nearest-N set. Skips the
+    /// add step unless authorized or provisional (see `canScheduleAlerts`).
     func reschedule(upcoming: [(id: UUID, startAt: Date, clientName: String)]) async
 }
 
 final class LocalNotificationService: NotificationScheduling {
     func requestAuthorization() async -> Bool {
-        (try? await UNUserNotificationCenter.current()
-            .requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        do {
+            return try await UNUserNotificationCenter.current()
+                .requestAuthorization(options: [.alert, .sound, .badge])
+        } catch {
+            Log.notifications.error("requestAuthorization failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
     }
 
     func reschedule(upcoming: [(id: UUID, startAt: Date, clientName: String)]) async {
@@ -70,6 +86,12 @@ final class LocalNotificationService: NotificationScheduling {
         // Only touch our own requests; never clobber anything else pending.
         let pending = await center.pendingNotificationRequests().map(\.identifier)
         center.removePendingNotificationRequests(withIdentifiers: sessionAlertIdentifiers(from: pending))
+
+        let status = await authorizationStatus()
+        guard canScheduleAlerts(status) else {
+            Log.notifications.info("Skipping \(upcoming.count) session alerts: authorization status \(status.rawValue)")
+            return
+        }
 
         for alert in selectAlerts(sessions: upcoming, now: .now) {
             let content = UNMutableNotificationContent()
@@ -82,11 +104,15 @@ final class LocalNotificationService: NotificationScheduling {
                 from: alert.fireDate
             )
             let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            try? await center.add(UNNotificationRequest(
-                identifier: alert.identifier,
-                content: content,
-                trigger: trigger
-            ))
+            do {
+                try await center.add(UNNotificationRequest(
+                    identifier: alert.identifier,
+                    content: content,
+                    trigger: trigger
+                ))
+            } catch {
+                Log.notifications.error("add \(alert.identifier) failed: \(error.localizedDescription)")
+            }
         }
     }
 }

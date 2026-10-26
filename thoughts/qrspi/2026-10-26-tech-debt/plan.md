@@ -701,8 +701,8 @@ import Testing
 
 ### Verification
 #### Automated
-- [ ] Test command passes (2 new tests)
-- [ ] `grep -n "try?" Sources/Services/NotificationService.swift Sources/Services/ReminderCoordinator.swift` → none
+- [x] Test command passes (2 new tests)
+- [x] `grep -n "try?" Sources/Services/NotificationService.swift Sources/Services/ReminderCoordinator.swift` → none
 #### Manual
 - [ ] Fresh install on device → system prompt appears; tap Don't Allow → Settings tab
   Permissions shows "Denied" with "Open Settings"; tap it → system Settings opens; allow →
