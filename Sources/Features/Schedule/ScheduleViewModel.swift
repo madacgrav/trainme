@@ -18,6 +18,7 @@ final class ScheduleViewModel {
     var clientInjuries: [UUID: String?] = [:]
     /// Export is the only backup (PRD §9); the Schedule banner shows while true.
     var isExportReminderDue = false
+    var isLoading = false
 
     private static let dismissedKey = "exportBannerDismissedAt"
     private static let dismissalWindow: TimeInterval = 3 * 86_400
@@ -39,6 +40,8 @@ final class ScheduleViewModel {
     }
 
     func load() async {
+        isLoading = true
+        defer { isLoading = false }
         let calendar = Calendar.current
         let dayStart = calendar.startOfDay(for: selectedDate)
         let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart

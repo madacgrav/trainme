@@ -53,7 +53,7 @@ struct RootView: View {
                     exerciseRepo: SwiftDataExerciseRepository(modelContainer: container)
                 ))
             }
-            Tab("Exercises", systemImage: "dumbbell.fill", value: 3) {
+            Tab("Exercises", systemImage: "dumbbell.fill", value: 3, role: .search) {
                 ExerciseListView(viewModel: ExerciseListViewModel(repo: SwiftDataExerciseRepository(modelContainer: container)))
             }
             Tab("Settings", systemImage: "gearshape.fill", value: 4) {

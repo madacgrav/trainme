@@ -14,15 +14,11 @@ struct SessionRunView: View {
 
     var body: some View {
         List {
-            if let errorMessage = viewModel.errorMessage {
-                Section {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
-            }
+            ErrorBanner(message: viewModel.errorMessage)
             if let injuries = viewModel.clientInjuries, !injuries.isEmpty {
                 Section {
                     Label(injuries, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.Colors.warning)
                         .font(.callout)
                 } header: {
                     Text("Injuries / limitations")
@@ -79,6 +75,7 @@ struct SessionRunView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle(viewModel.clientName)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
@@ -93,8 +90,9 @@ struct SessionRunView: View {
                     }
                     Button("Delete session", systemImage: "trash", role: .destructive) { confirmingDelete = true }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Label("More", systemImage: "ellipsis.circle").labelStyle(.iconOnly)
                 }
+                .accessibilityLabel("More actions")
             }
         }
         .sheet(isPresented: $showingEdit) {

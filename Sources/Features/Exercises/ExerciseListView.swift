@@ -11,15 +11,7 @@ struct ExerciseListView: View {
                 Button {
                     editingExercise = exercise
                 } label: {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(exercise.name)
-                                .foregroundStyle(.primary)
-                            Text(exercise.category.rawValue.capitalized)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
+                    TitleCaptionRow(title: exercise.name, caption: exercise.category.rawValue.capitalized) {
                         if exercise.isCustom {
                             Text("Custom")
                                 .font(.caption2)
@@ -29,12 +21,17 @@ struct ExerciseListView: View {
                         }
                     }
                 }
+                .buttonStyle(.plain)
+                .themedRows()
             }
             .overlay {
-                if viewModel.filtered.isEmpty {
-                    ContentUnavailableView("No exercises", systemImage: "dumbbell")
+                if viewModel.isLoading && viewModel.filtered.isEmpty {
+                    ProgressView()
+                } else if viewModel.filtered.isEmpty {
+                    EmptyState(title: "No exercises", systemImage: "dumbbell.fill")
                 }
             }
+            .themedScreen()
             .searchable(text: $viewModel.query, prompt: "Search exercises")
             .navigationTitle("Exercises")
             .toolbar {
@@ -67,4 +64,9 @@ struct ExerciseListView: View {
             }
         }
     }
+}
+
+#Preview("Exercises") {
+    let repos = PreviewFixtures.repositories()
+    ExerciseListView(viewModel: ExerciseListViewModel(repo: repos.exercises))
 }

@@ -11,6 +11,7 @@ final class ClientListViewModel {
     let reminders: ReminderCoordinator
     var clients: [ClientDTO] = []
     var query: String = ""
+    var isLoading = false
 
     init(
         repo: any ClientRepository,
@@ -27,6 +28,8 @@ final class ClientListViewModel {
     }
 
     func load() async {
+        isLoading = true
+        defer { isLoading = false }
         clients = (try? await repository.search(query)) ?? []
     }
 }

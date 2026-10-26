@@ -31,18 +31,10 @@ struct LockGateView<Content: View>: View {
     }
 
     private var lockScreen: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 44))
-                .foregroundStyle(.secondary)
-            Text("TrainMe is locked")
-                .font(.headline)
-            Button("Unlock") {
-                Task { await lock.authenticate() }
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(.regularMaterial)
+        HeroScreen(
+            systemImage: "lock.fill",
+            title: "TrainMe is locked",
+            primary: ("Unlock", { Task { await lock.authenticate() } })
+        )
     }
 }

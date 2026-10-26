@@ -522,10 +522,10 @@ top-exercise and history rows → `TitleCaptionRow`; `.themedScreen()`; `#Previe
 
 ### Verification
 #### Automated
-- [ ] Test command passes (109).
-- [ ] `grep -rn "foregroundStyle(.red)" Sources` → 0 lines.
-- [ ] `grep -rn "font(.system(size:" Sources` → 0 lines outside `Components/HeroScreen.swift`.
-- [ ] `grep -rln "#Preview" Sources/Features | wc -l` ≥ 12.
+- [x] Test command passes (109).
+- [x] `grep -rn "foregroundStyle(.red)" Sources` → 0 lines.
+- [x] `grep -rn "font(.system(size:" Sources` → 0 lines outside `Components/HeroScreen.swift`.
+- [x] `grep -rln "#Preview" Sources/Features | wc -l` ≥ 12.
 
 #### Manual
 - [ ] Accessibility Inspector (Xcode → Open Developer Tool) on the simulator: every toolbar and in-row icon button reports a label.

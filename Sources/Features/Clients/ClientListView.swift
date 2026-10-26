@@ -17,24 +17,21 @@ struct ClientListView: View {
                         client: client
                     ))
                 } label: {
-                    VStack(alignment: .leading) {
-                        Text(client.name)
-                        if let goal = client.goal, !goal.isEmpty {
-                            Text(goal)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                    TitleCaptionRow(title: client.name, caption: client.goal)
                 }
+                .themedRows()
             }
             .overlay {
-                if viewModel.clients.isEmpty {
-                    ContentUnavailableView(
-                        viewModel.query.isEmpty ? "No clients yet" : "No matches",
-                        systemImage: "person.2"
+                if viewModel.isLoading && viewModel.clients.isEmpty {
+                    ProgressView()
+                } else if viewModel.clients.isEmpty {
+                    EmptyState(
+                        title: viewModel.query.isEmpty ? "No clients yet" : "No matches",
+                        systemImage: "person.2.fill"
                     )
                 }
             }
+            .themedScreen()
             .searchable(text: $viewModel.query, prompt: "Search clients")
             .navigationTitle("Clients")
             .toolbar {
@@ -51,4 +48,15 @@ struct ClientListView: View {
             }
         }
     }
+}
+
+#Preview("Clients") {
+    let repos = PreviewFixtures.repositories()
+    ClientListView(viewModel: ClientListViewModel(
+        repo: repos.clients,
+        exerciseRepo: repos.exercises,
+        sessionRepo: repos.sessions,
+        reporting: repos.reporting,
+        reminders: repos.reminders
+    ))
 }

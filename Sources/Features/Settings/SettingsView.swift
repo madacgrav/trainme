@@ -106,6 +106,7 @@ struct SettingsView: View {
                     }
                 }
             }
+            .themedScreen()
             .navigationTitle("Settings")
             .task { await refreshPermissions() }
             .onChange(of: scenePhase) { _, phase in
@@ -213,4 +214,9 @@ struct PermissionRow: View {
             }
         }
     }
+}
+
+#Preview("Settings") {
+    let repos = PreviewFixtures.repositories()
+    SettingsView(archive: repos.archive, reminders: repos.reminders)
 }

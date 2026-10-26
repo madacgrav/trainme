@@ -20,7 +20,7 @@ struct ClientEditView: View {
                     if !viewModel.phoneRaw.isEmpty && !viewModel.phoneValid {
                         Text("Enter a valid phone number")
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.Colors.danger)
                     }
                 }
                 Section("Training") {
@@ -31,9 +31,7 @@ struct ClientEditView: View {
                     TextField("Notes", text: $viewModel.notes, axis: .vertical)
                         .lineLimit(3...8)
                 }
-                if let error = viewModel.errorMessage {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
+                ErrorBanner(message: viewModel.errorMessage)
             }
             .navigationTitle(viewModel.isEditing ? "Edit Client" : "New Client")
             .navigationBarTitleDisplayMode(.inline)
@@ -50,9 +48,15 @@ struct ClientEditView: View {
                             }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.canSave)
                 }
             }
         }
     }
+}
+
+#Preview("Edit client") {
+    let repos = PreviewFixtures.repositories()
+    ClientEditView(repo: repos.clients, existing: PreviewFixtures.client) {}
 }

@@ -57,8 +57,10 @@ struct ScheduleView: View {
                     .themedRows()
                 }
                 .overlay {
-                    if viewModel.sessionsForDay.isEmpty {
-                        ContentUnavailableView("No sessions this day", systemImage: "calendar")
+                    if viewModel.isLoading && viewModel.sessionsForDay.isEmpty {
+                        ProgressView()
+                    } else if viewModel.sessionsForDay.isEmpty {
+                        EmptyState(title: "No sessions this day", systemImage: "calendar")
                     }
                 }
                 .themedScreen()

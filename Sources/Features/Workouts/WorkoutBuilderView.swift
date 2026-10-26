@@ -30,23 +30,19 @@ struct WorkoutBuilderView: View {
                         Button {
                             editingEntryIndex = index
                         } label: {
-                            VStack(alignment: .leading) {
-                                Text(viewModel.exerciseNames[entry.exerciseId] ?? "Exercise")
-                                    .foregroundStyle(.primary)
-                                Text(targetSummary(entry, unit: viewModel.exerciseUnits[entry.exerciseId] ?? .lb))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                            TitleCaptionRow(
+                                title: viewModel.exerciseNames[entry.exerciseId] ?? "Exercise",
+                                caption: targetSummary(entry, unit: viewModel.exerciseUnits[entry.exerciseId] ?? .lb)
+                            )
                         }
+                        .buttonStyle(.plain)
                     }
                     .onMove { viewModel.move(from: $0, to: $1) }
                     .onDelete { viewModel.remove(at: $0) }
 
                     Button("Add exercise", systemImage: "plus") { showingPicker = true }
                 }
-                if let error = viewModel.errorMessage {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
+                ErrorBanner(message: viewModel.errorMessage)
             }
             .navigationTitle(viewModel.isEditing ? "Edit Workout" : "New Workout")
             .navigationBarTitleDisplayMode(.inline)
@@ -63,6 +59,7 @@ struct WorkoutBuilderView: View {
                             }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.canSave)
                 }
             }
@@ -124,13 +121,9 @@ struct ExercisePickerView: View {
                     onPick(exercise)
                     dismiss()
                 } label: {
-                    VStack(alignment: .leading) {
-                        Text(exercise.name).foregroundStyle(.primary)
-                        Text(exercise.category.rawValue.capitalized)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    TitleCaptionRow(title: exercise.name, caption: exercise.category.rawValue.capitalized)
                 }
+                .buttonStyle(.plain)
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search exercises")
             .navigationTitle("Add Exercise")
@@ -198,13 +191,20 @@ struct OptionalStepper: View {
                     set: { value = $0 }
                 ), in: range, step: step)
                 .fixedSize()
-                Button("Clear", systemImage: "xmark.circle.fill") { value = nil }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tertiary)
+                IconButton(title: "Clear", systemImage: "xmark.circle.fill", tint: .tertiary) { value = nil }
             } else {
                 Button("Set") { value = defaultValue }
             }
         }
     }
+}
+
+#Preview("Builder") {
+    let repos = PreviewFixtures.repositories()
+    WorkoutBuilderView(workoutRepo: repos.workouts, exerciseRepo: repos.exercises, existing: PreviewFixtures.workout) {}
+}
+
+#Preview("Exercise picker") {
+    let repos = PreviewFixtures.repositories()
+    ExercisePickerView(repo: repos.exercises) { _ in }
 }

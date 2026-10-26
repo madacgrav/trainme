@@ -8,12 +8,8 @@ struct ClientReportView: View {
 
     var body: some View {
         List {
-            if let message = viewModel.errorMessage {
-                Section { Text(message).foregroundStyle(.red) }
-            }
-            if let exportError {
-                Section { Text(exportError).foregroundStyle(.red) }
-            }
+            ErrorBanner(message: viewModel.errorMessage)
+            ErrorBanner(message: exportError)
             if viewModel.topExercises.isEmpty {
                 ContentUnavailableView(
                     "No completed sessions yet",
@@ -63,26 +59,17 @@ struct ClientReportView: View {
                             ExerciseReportView(viewModel: ExerciseReportViewModel(
                                 reporting: viewModel.reporting, client: viewModel.client, exercise: item.exercise))
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.exercise.name)
-                                Text(ClientReportViewModel.detail(for: item)).font(.caption).foregroundStyle(.secondary)
-                            }
+                            TitleCaptionRow(title: item.exercise.name, caption: ClientReportViewModel.detail(for: item))
                         }
                     }
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("\(viewModel.client.name) — Progress")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let files {
-                Menu {
-                    ShareLink("Share PDF", item: files.pdf)
-                    ShareLink("Share PNG", item: files.png)
-                } label: {
-                    Label("Share report", systemImage: "square.and.arrow.up")
-                }
-            }
+            ShareReportMenu(files: files)
         }
         .task { await viewModel.load(); renderReport() }
         .onChange(of: viewModel.window) { Task { await viewModel.reloadWindow(); renderReport() } }
@@ -195,5 +182,14 @@ struct VolumeChart: View {
             .frame(height: height)
             .padding(.vertical, 4)
         }
+    }
+}
+
+#Preview("Client report") {
+    let repos = PreviewFixtures.repositories()
+    NavigationStack {
+        ClientReportView(viewModel: ClientReportViewModel(
+            reporting: repos.reporting, exerciseRepo: repos.exercises, client: PreviewFixtures.client
+        ))
     }
 }

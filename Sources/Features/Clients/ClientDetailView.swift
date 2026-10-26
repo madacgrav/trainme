@@ -7,11 +7,8 @@ struct ClientDetailView: View {
 
     var body: some View {
         List {
-            if let errorMessage = viewModel.errorMessage {
-                Section {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
-            }
+            ErrorBanner(message: viewModel.errorMessage)
+                .themedRows()
             Section("Contact") {
                 LabeledContent("Phone", value: viewModel.client.phoneE164)
                 if let goal = viewModel.client.goal {
@@ -24,6 +21,7 @@ struct ClientDetailView: View {
                     LabeledContent("Notes", value: notes)
                 }
             }
+            .themedRows()
             Section("Upcoming Sessions") {
                 if viewModel.upcomingSessions.isEmpty {
                     Text("Nothing scheduled").foregroundStyle(.secondary)
@@ -32,6 +30,7 @@ struct ClientDetailView: View {
                     sessionLink(session)
                 }
             }
+            .themedRows()
             Section("Recent Sessions") {
                 if viewModel.recentSessions.isEmpty {
                     Text("No sessions yet").foregroundStyle(.secondary)
@@ -40,6 +39,7 @@ struct ClientDetailView: View {
                     sessionLink(session)
                 }
             }
+            .themedRows()
             Section("Progress Reports") {
                 NavigationLink("View progress") {
                     ClientReportView(viewModel: ClientReportViewModel(
@@ -49,13 +49,16 @@ struct ClientDetailView: View {
                     ))
                 }
             }
+            .themedRows()
             if viewModel.client.isArchived {
                 Section {
                     Label("This client is archived", systemImage: "archivebox")
                         .foregroundStyle(.secondary)
                 }
+                .themedRows()
             }
         }
+        .themedScreen()
         .navigationTitle(viewModel.client.name)
         .toolbar {
             Menu {
@@ -67,8 +70,9 @@ struct ClientDetailView: View {
                     confirmingArchive = true
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Label("More", systemImage: "ellipsis.circle").labelStyle(.iconOnly)
             }
+            .accessibilityLabel("More actions")
         }
         .confirmationDialog(
             viewModel.client.isArchived ? "Unarchive \(viewModel.client.name)?" : "Archive \(viewModel.client.name)?",
@@ -110,5 +114,19 @@ struct ClientDetailView: View {
         } label: {
             SessionRow(session: session, clientName: session.startAt.formatted(date: .abbreviated, time: .omitted))
         }
+    }
+}
+
+#Preview("Client detail") {
+    let repos = PreviewFixtures.repositories()
+    NavigationStack {
+        ClientDetailView(viewModel: ClientDetailViewModel(
+            repo: repos.clients,
+            exerciseRepo: repos.exercises,
+            sessionRepo: repos.sessions,
+            reporting: repos.reporting,
+            reminders: repos.reminders,
+            client: PreviewFixtures.client
+        ))
     }
 }

@@ -71,9 +71,7 @@ struct ExerciseEditView: View {
                     }
                     .pickerStyle(.segmented)
                 }
-                if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red) }
-                }
+                ErrorBanner(message: errorMessage)
             }
             .navigationTitle(existing == nil ? "New Exercise" : "Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
@@ -90,6 +88,7 @@ struct ExerciseEditView: View {
                             }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(!canSave)
                 }
             }
@@ -120,4 +119,9 @@ struct ExerciseEditView: View {
             return false
         }
     }
+}
+
+#Preview("Edit exercise") {
+    let repos = PreviewFixtures.repositories()
+    ExerciseEditView(repo: repos.exercises, existing: PreviewFixtures.bench) {}
 }
