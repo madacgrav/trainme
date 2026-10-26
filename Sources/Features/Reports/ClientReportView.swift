@@ -3,11 +3,16 @@ import SwiftUI
 
 struct ClientReportView: View {
     @State var viewModel: ClientReportViewModel
+    @State private var files: ReportFiles?
+    @State private var exportError: String?
 
     var body: some View {
         List {
             if let message = viewModel.errorMessage {
                 Section { Text(message).foregroundStyle(.red) }
+            }
+            if let exportError {
+                Section { Text(exportError).foregroundStyle(.red) }
             }
             if viewModel.topExercises.isEmpty {
                 ContentUnavailableView(
@@ -69,8 +74,39 @@ struct ClientReportView: View {
         }
         .navigationTitle("\(viewModel.client.name) — Progress")
         .navigationBarTitleDisplayMode(.inline)
-        .task { await viewModel.load() }
-        .onChange(of: viewModel.window) { Task { await viewModel.reloadWindow() } }
+        .toolbar {
+            if let files {
+                Menu {
+                    ShareLink("Share PDF", item: files.pdf)
+                    ShareLink("Share PNG", item: files.png)
+                } label: {
+                    Label("Share report", systemImage: "square.and.arrow.up")
+                }
+            }
+        }
+        .task { await viewModel.load(); renderReport() }
+        .onChange(of: viewModel.window) { Task { await viewModel.reloadWindow(); renderReport() } }
+        .onDisappear {
+            // Rendered reports hold client PII: sweep them once the screen is gone.
+            files = nil
+            ReportExporter.removeReports()
+        }
+    }
+
+    private func renderReport() {
+        exportError = nil
+        guard !viewModel.topExercises.isEmpty else { files = nil; return }
+        do {
+            files = try ReportExporter.render(
+                ClientOverviewPage(clientName: viewModel.client.name, window: viewModel.window,
+                                   consistency: viewModel.consistency, weeks: viewModel.weeklyVolumes,
+                                   topExercises: viewModel.topExercises.map { ($0.exercise.name, ClientReportViewModel.detail(for: $0)) }),
+                baseName: "\(viewModel.client.name) — Overview")
+        } catch {
+            Log.ui.error("report render failed: \(error.localizedDescription)")
+            files = nil
+            exportError = "Couldn't prepare the report for sharing."
+        }
     }
 }
 
@@ -79,6 +115,7 @@ struct ExerciseProgressChart: View {
     let personalBest: SetRecordDTO?
     let metric: KeyPath<ProgressPoint, Double?>
     let unitLabel: String
+    var height: CGFloat = 220
 
     /// Only days that have this metric are plotted and counted.
     private var plotted: [(point: ProgressPoint, value: Double)] {
@@ -92,7 +129,7 @@ struct ExerciseProgressChart: View {
                 systemImage: "chart.xyaxis.line",
                 description: Text("Record this exercise in at least two completed sessions.")
             )
-            .frame(height: 180)
+            .frame(height: height - 40)
         } else {
             Chart {
                 ForEach(plotted, id: \.point.id) { entry in
@@ -117,7 +154,7 @@ struct ExerciseProgressChart: View {
                 }
             }
             .chartYAxisLabel(unitLabel)
-            .frame(height: 220)
+            .frame(height: height)
             .padding(.vertical, 4)
         }
     }
@@ -125,6 +162,7 @@ struct ExerciseProgressChart: View {
 
 struct VolumeChart: View {
     let weeks: [WeeklyVolume]
+    var height: CGFloat = 220
 
     private struct Bar: Identifiable {
         let id: String
@@ -147,14 +185,14 @@ struct VolumeChart: View {
         if weeks.count < ProgressPoint.minimumPoints {
             ContentUnavailableView("Not enough data yet", systemImage: "chart.bar",
                                    description: Text("Volume appears after two weeks of completed sessions."))
-            .frame(height: 180)
+            .frame(height: height - 40)
         } else {
             Chart(bars) { bar in
                 BarMark(x: .value("Week", bar.week, unit: .weekOfYear), y: .value("Volume", bar.amount))
                     .foregroundStyle(by: .value("Unit", bar.unit))
             }
             .chartYAxisLabel("weight × reps")
-            .frame(height: 220)
+            .frame(height: height)
             .padding(.vertical, 4)
         }
     }

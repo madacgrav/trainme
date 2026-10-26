@@ -1490,7 +1490,7 @@ plan, and verify the PNG on device instead.
 
 ### Verification
 #### Automated
-- [ ] `xcodegen generate`; test command passes including `ReportExporterTests`.
+- [x] `xcodegen generate`; test command passes including `ReportExporterTests`.
 #### Manual
 - [ ] Device: overview Share menu offers PDF and PNG; the PNG matches the screen (consistency, bar chart, top exercises); the PDF is one Letter page.
 - [ ] Device: exercise Share menu offers PDF and PNG; the PDF shows all three charts.

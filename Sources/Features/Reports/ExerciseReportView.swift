@@ -3,12 +3,16 @@ import SwiftUI
 
 struct ExerciseReportView: View {
     @State var viewModel: ExerciseReportViewModel
-    @State private var pdfURL: URL?
+    @State private var files: ReportFiles?
+    @State private var exportError: String?
 
     var body: some View {
         List {
             if let message = viewModel.errorMessage {
                 Section { Text(message).foregroundStyle(.red) }
+            }
+            if let exportError {
+                Section { Text(exportError).foregroundStyle(.red) }
             }
             if let pb = viewModel.personalBest, let weight = pb.weight {
                 Section {
@@ -45,23 +49,35 @@ struct ExerciseReportView: View {
         .navigationTitle(viewModel.exercise.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let pdfURL {
-                ShareLink(item: pdfURL) { Label("Share report", systemImage: "square.and.arrow.up") }
+            if let files {
+                Menu {
+                    ShareLink("Share PDF", item: files.pdf)
+                    ShareLink("Share PNG", item: files.png)
+                } label: {
+                    Label("Share report", systemImage: "square.and.arrow.up")
+                }
             }
         }
-        .task { await viewModel.load(); renderPDF() }
+        .task { await viewModel.load(); renderReport() }
         .onDisappear {
             // Rendered reports hold client PII: sweep them once the screen is gone.
-            pdfURL = nil
+            files = nil
             ReportExporter.removeReports()
         }
     }
 
-    private func renderPDF() {
-        guard viewModel.hasEnoughData else { pdfURL = nil; return }
-        pdfURL = try? ReportExporter.renderPDF(
-            clientName: viewModel.client.name, exerciseName: viewModel.exercise.name,
-            points: viewModel.points, personalBest: viewModel.personalBest, unit: viewModel.unit
-        )
+    private func renderReport() {
+        exportError = nil
+        guard viewModel.hasEnoughData else { files = nil; return }
+        do {
+            files = try ReportExporter.render(
+                ExerciseReportPage(clientName: viewModel.client.name, exerciseName: viewModel.exercise.name,
+                                   points: viewModel.points, personalBest: viewModel.personalBest, unit: viewModel.unit),
+                baseName: "\(viewModel.client.name) — \(viewModel.exercise.name) Progress")
+        } catch {
+            Log.ui.error("report render failed: \(error.localizedDescription)")
+            files = nil
+            exportError = "Couldn't prepare the report for sharing."
+        }
     }
 }
