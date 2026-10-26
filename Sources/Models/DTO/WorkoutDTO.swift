@@ -55,3 +55,12 @@ extension WorkoutDTO {
         )
     }
 }
+
+extension WorkoutDTO {
+    /// Builds a Workout with its entries attached; mirrors WorkoutRepository.upsert.
+    func toModel() -> Workout {
+        let workout = Workout(id: id, name: name, createdAt: createdAt, updatedAt: updatedAt)
+        workout.entries.append(contentsOf: entries.map { $0.toModel() })
+        return workout
+    }
+}

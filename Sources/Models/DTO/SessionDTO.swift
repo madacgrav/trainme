@@ -87,3 +87,33 @@ extension SessionDTO {
         )
     }
 }
+
+extension WorkoutInstanceDTO {
+    /// Builds a WorkoutInstance with its planned entries attached.
+    func toModel() -> WorkoutInstance {
+        let instance = WorkoutInstance(id: id, sourceWorkoutId: sourceWorkoutId, name: name)
+        instance.plannedEntries.append(contentsOf: plannedEntries.map { $0.toModel() })
+        return instance
+    }
+}
+
+extension SessionDTO {
+    /// Builds a Session with its instances attached; mirrors SessionRepository.insertSession.
+    func toModel() -> Session {
+        let session = Session(
+            id: id,
+            clientId: clientId,
+            startAt: startAt,
+            endAt: endAt,
+            status: status,
+            notes: notes,
+            seriesId: seriesId,
+            recurrenceData: recurrence.flatMap { try? JSONEncoder().encode($0) },
+            eventIdentifier: eventIdentifier,
+            createdAt: createdAt,
+            updatedAt: updatedAt
+        )
+        session.instances.append(contentsOf: instances.map { $0.toModel() })
+        return session
+    }
+}
