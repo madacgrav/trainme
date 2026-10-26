@@ -43,6 +43,17 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 - Xcode 26+ with the iOS 26 simulator runtime
 - Deployment target: iOS 26
 
+## Permissions
+
+Notifications and calendar access are optional. Settings → Permissions shows the current
+status of each and offers an **Open Settings** link when one has been denied. Session
+reminders (24 h and 1 h before) are scheduled only while notifications are allowed;
+"Add to calendar" on a session needs full calendar access and falls back to the first
+writable calendar when no default is set.
+
+Continuous integration runs `xcodegen generate` and the simulator test suite on every
+pull request (`.github/workflows/ci.yml`).
+
 ## Project layout
 
 - `Sources/Models/` — SwiftData `@Model` types and their Codable DTOs

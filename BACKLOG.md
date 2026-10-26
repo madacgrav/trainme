@@ -8,6 +8,10 @@ Source: `thoughts/qrspi/2026-10-26-review-gaps-and-app-icon/research.md`. P0 ite
 that review (export reminder, injuries at session time, units, session edit/delete,
 confirmations, failed-save surfacing, notification correctness) shipped in the same PR.
 
+Tech debt and test gaps from that review (rows 20–27) were addressed on branch
+`2026-10-26-tech-debt`; see the [Done](#done) table and
+`thoughts/qrspi/2026-10-26-tech-debt/` for the design and plan.
+
 ## P1 — features
 
 | # | Item | Why / PRD ref | Evidence | Issue |
@@ -42,20 +46,21 @@ confirmations, failed-save surfacing, notification correctness) shipped in the s
 | 18 | Double-booking detection / warning | decisions.md #3: out of scope | [#20](https://github.com/madacgrav/trainme/issues/20) |
 | 19 | Direct Google Calendar API integration | decisions.md #4: default calendar + share sheet only | [#21](https://github.com/madacgrav/trainme/issues/21) |
 
-## Tech debt
+## Done
 
-| # | Item | Why | Evidence | Issue |
-|---|------|-----|----------|-------|
-| 20 | `VersionedSchema` + `SchemaMigrationPlan` | Original plan said "from first release" | `PersistenceController` builds a plain `Schema` | [#22](https://github.com/madacgrav/trainme/issues/22) |
-| 21 | Pre-import automatic backup and import rollback on partial failure | Replace-import deletes before upsert in one context | `DataArchive.importData` | [#23](https://github.com/madacgrav/trainme/issues/23) |
-| 22 | Surface remaining background `try?` paths | Seed import and calendar push fail silently | `RootView.task`, `SessionEditView.save` | [#24](https://github.com/madacgrav/trainme/issues/24) |
-| 23 | Check notification authorization before `add`; re-prompt path when denied | `add` errors are swallowed | `LocalNotificationService.reschedule` | [#25](https://github.com/madacgrav/trainme/issues/25) |
-| 24 | Handle `defaultCalendarForNewEvents == nil` | Assignment is unchecked | `EventKitCalendarService.push` | [#26](https://github.com/madacgrav/trainme/issues/26) |
-| 25 | Privacy manifest, entitlements file, CI workflow | None exist | `.github/` has only CODEOWNERS | [#27](https://github.com/madacgrav/trainme/issues/27) |
+Addressed on `2026-10-26-tech-debt` (one commit per phase; PR link added when opened).
 
-## Test gaps
+| # | Item | Resolution | Issue |
+|---|------|------------|-------|
+| 20 | `VersionedSchema` + `SchemaMigrationPlan` | `SchemaV1` + `TrainMeMigrationPlan`; `StoreBackup` keyed on schema version with a one-time legacy backup | [#22](https://github.com/madacgrav/trainme/issues/22) |
+| 21 | Pre-import automatic backup and import rollback on partial failure | `SafeImporter` snapshots before replace-import, `importData` rolls back on throw, snapshot restored on failure; distinct Settings messages | [#23](https://github.com/madacgrav/trainme/issues/23) |
+| 22 | Surface remaining background `try?` paths | `os.Logger` per subsystem; seed-import alert; `SessionRunViewModel` error state; calendar warnings after save; export/import picker failures reported | [#24](https://github.com/madacgrav/trainme/issues/24) |
+| 23 | Check notification authorization before `add`; re-prompt path when denied | `reschedule` gates on `canScheduleAlerts`; Settings → Permissions shows status with Open Settings link | [#25](https://github.com/madacgrav/trainme/issues/25) |
+| 24 | Handle `defaultCalendarForNewEvents == nil` | Falls back to first writable calendar, else `CalendarError.noWritableCalendar` surfaced as a warning | [#26](https://github.com/madacgrav/trainme/issues/26) |
+| 25 | Privacy manifest, entitlements file, CI workflow | `Sources/PrivacyInfo.xcprivacy`, `Sources/TrainMe.entitlements`, `.github/workflows/ci.yml` | [#27](https://github.com/madacgrav/trainme/issues/27) |
+| 26 | AppLock, EventKit write path, notification delivery, ReportExporter, view models, UI tests | Partial: `SessionRunViewModel` failure paths, notification gate, calendar outcome resolution, coordinator status tested via fakes. Still open: AppLock, ReportExporter, real EventKit/UNUserNotificationCenter, UI tests | [#28](https://github.com/madacgrav/trainme/issues/28) |
+| 27 | Replace-import into a non-empty store; `importArchive(url:)` failure paths | `Tests/SafeImporterTests.swift` covers both plus mid-import failure restore and malformed body | [#29](https://github.com/madacgrav/trainme/issues/29) |
 
-| # | Item | Evidence | Issue |
-|---|------|----------|-------|
-| 26 | AppLock, EventKit write path, notification delivery, ReportExporter, view models, UI tests | No tests reference these types | [#28](https://github.com/madacgrav/trainme/issues/28) |
-| 27 | Replace-import into a non-empty store; `importArchive(url:)` failure paths | `ArchiveRoundTripTests` imports into a fresh store only | [#29](https://github.com/madacgrav/trainme/issues/29) |
+Still worth a look (found while doing the above, not fixed): `ClientReportView` swallows a
+failed PDF render; a failed `upcoming` fetch in `ReminderCoordinator.refresh` clears all
+pending alerts instead of leaving them.
