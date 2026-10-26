@@ -1531,10 +1531,11 @@ Body lists the six issues as `Closes #3, #4, #5, #6, #11, #12` and links
 
 ### Verification
 #### Automated
-- [ ] CI green on the PR.
+- [x] CI green on the PR.
 #### Manual
 - [x] Full device pass on madphone with the final branch build: every manual checkbox in Phases 1–6 re-run once against that build.
 - [x] Record: `- 2026-MM-DD: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build; all passed.`
 
 - 2026-10-26: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build (2efbd7a, Debug); all passed.
 - 2026-10-26: PR opened as [#34](https://github.com/madacgrav/trainme/pull/34).
+- 2026-10-26: CI green on #34 (`test` check); merged into main as 1d51824. Issues #3, #4, #5, #6, #11, #12 closed.
