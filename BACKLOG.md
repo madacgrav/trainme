@@ -8,8 +8,8 @@ Source: `thoughts/qrspi/2026-10-26-review-gaps-and-app-icon/research.md`. P0 ite
 that review (export reminder, injuries at session time, units, session edit/delete,
 confirmations, failed-save surfacing, notification correctness) shipped in the same PR.
 
-Tech debt and test gaps from that review (rows 20–27) were addressed on branch
-`2026-10-26-tech-debt`; see the [Done](#done) table and
+Tech debt and test gaps from that review (rows 20–27) were addressed in
+[#32](https://github.com/madacgrav/trainme/pull/32); see the [Done](#done) table and
 `thoughts/qrspi/2026-10-26-tech-debt/` for the design and plan.
 
 ## P1 — features
@@ -48,7 +48,7 @@ Tech debt and test gaps from that review (rows 20–27) were addressed on branch
 
 ## Done
 
-Addressed on `2026-10-26-tech-debt` (one commit per phase; PR link added when opened).
+Addressed in [#32](https://github.com/madacgrav/trainme/pull/32) (one commit per phase).
 
 | # | Item | Resolution | Issue |
 |---|------|------------|-------|

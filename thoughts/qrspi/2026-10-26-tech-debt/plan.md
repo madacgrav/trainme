@@ -1118,7 +1118,7 @@ On merge: `gh issue close 22 23 24 25 26 27 28 29 --comment "Closed by #NN"`.
 
 ### Verification
 #### Automated
-- [ ] `grep -c "pull/" BACKLOG.md` ≥ 1; all links in BACKLOG resolve (`gh issue view 22` etc.)
+- [x] `grep -c "pull/" BACKLOG.md` ≥ 1; all links in BACKLOG resolve (`gh issue view 22` etc.)
 #### Manual
 - [ ] `gh issue list --state open` no longer lists #22–#29 after merge
 
