@@ -13,6 +13,8 @@ final class AppBootstrap {
     private static let storeURL = URL.applicationSupportDirectory.appending(path: "default.store")
 
     init() {
+        // A snapshot left behind means the app died mid-import; it is stale now.
+        SafeImporter.removeSnapshot()
         do {
             try StoreBackup.backupIfVersionChanged(storeURL: Self.storeURL, currentVersion: SchemaV1.versionString)
         } catch {

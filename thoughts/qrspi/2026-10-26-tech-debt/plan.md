@@ -521,9 +521,9 @@ memberwise order differs.
 
 ### Verification
 #### Automated
-- [ ] Test command passes (4 new tests)
-- [ ] `grep -n "rollback()" Sources/Services/Archive/DataArchive.swift` → 1 hit
-- [ ] `grep -n "try? await archive" Sources/Features/Settings/SettingsView.swift` → none
+- [x] Test command passes (4 new tests)
+- [x] `grep -n "rollback()" Sources/Services/Archive/DataArchive.swift` → 1 hit
+- [x] `grep -n "try? await archive" Sources/Features/Settings/SettingsView.swift` → none
 #### Manual
 - [ ] On device: export, then edit the export file to truncate it mid-array, import in
   Replace mode → message "Import failed. Your previous data was restored." and all data

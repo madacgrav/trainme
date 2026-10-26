@@ -39,8 +39,13 @@ struct SettingsView: View {
                 Section {
                     Button("Export all data…", systemImage: "square.and.arrow.up") {
                         Task {
-                            exportURL = try? await archive.export()
-                            showingExporter = exportURL != nil
+                            do {
+                                exportURL = try await archive.export()
+                                showingExporter = true
+                            } catch {
+                                Log.archive.error("Export failed: \(error.localizedDescription)")
+                                statusMessage = "Export failed. Please try again."
+                            }
                         }
                     }
                     Button("Import from file…", systemImage: "square.and.arrow.down") {
@@ -66,18 +71,26 @@ struct SettingsView: View {
                 contentTypes: [.json],
                 defaultFilename: exportURL?.lastPathComponent
             ) { result in
-                if case .success = result {
+                switch result {
+                case .success:
                     lastExportAt = Date.now.timeIntervalSince1970
                     statusMessage = "Export saved."
+                case .failure(let error):
+                    Log.archive.error("Export sheet failed: \(error.localizedDescription)")
+                    statusMessage = "Export wasn't saved."
                 }
                 // The export file holds client PII: never leave it in tmp.
                 exportURL = nil
                 DataArchiveActor.removeExports()
             }
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
-                if case .success(let url) = result {
+                switch result {
+                case .success(let url):
                     pendingImportURL = url
                     showingModeDialog = true
+                case .failure(let error):
+                    Log.archive.error("Import picker failed: \(error.localizedDescription)")
+                    statusMessage = "Couldn't open that file."
                 }
             }
             .confirmationDialog("How should the import be applied?", isPresented: $showingModeDialog, titleVisibility: .visible) {
@@ -102,14 +115,31 @@ struct SettingsView: View {
 
     private func runImport(mode: ImportMode) async {
         guard let url = pendingImportURL else { return }
+        defer { pendingImportURL = nil }
         do {
-            try await archive.importArchive(url: url, mode: mode)
+            switch mode {
+            case .merge:
+                try await archive.importArchive(url: url, mode: .merge)
+            case .replace:
+                try await SafeImporter(archive: archive).importReplacing(url: url)
+            }
             statusMessage = "Import complete."
         } catch ArchiveError.newerThanApp {
             statusMessage = "This file was exported by a newer version of TrainMe. Update the app first."
-        } catch {
+        } catch ArchiveError.unreadable {
             statusMessage = "Import failed: the file couldn't be read."
+        } catch ArchiveError.decodeFailed {
+            statusMessage = "Import failed: the file isn't a valid TrainMe export."
+        } catch let outcome as ImportOutcome {
+            switch outcome {
+            case .failedAndRestored:
+                statusMessage = "Import failed. Your previous data was restored."
+            case .failedAndRestoreFailed:
+                statusMessage = "Import failed and your data may be incomplete. Re-import your last export now."
+            }
+        } catch {
+            Log.archive.error("Import failed: \(error.localizedDescription)")
+            statusMessage = "Import failed. Please try again."
         }
-        pendingImportURL = nil
     }
 }

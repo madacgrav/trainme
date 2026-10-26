@@ -8,12 +8,17 @@ enum ImportMode: Sendable {
 enum ArchiveError: Error, Equatable {
     case newerThanApp(Int)
     case unreadable
+    /// Probe succeeded but the full envelope did not decode.
+    case decodeFailed
 }
 
 protocol DataArchiving: Sendable {
     /// Encodes everything to a versioned JSON file in tmp; caller hands the URL
     /// to .fileExporter / ShareLink.
     func export() async throws -> URL
+    /// The same archive as `export()` without touching the file system (used
+    /// by SafeImporter for its pre-import snapshot).
+    func exportData() async throws -> Data
     func importArchive(url: URL, mode: ImportMode) async throws
     /// Import from already-loaded data (used by tests and the recovery flow).
     func importData(_ data: Data, mode: ImportMode) async throws
@@ -22,6 +27,20 @@ protocol DataArchiving: Sendable {
 @ModelActor
 actor DataArchiveActor: DataArchiving {
     func export() async throws -> URL {
+        let data = try await exportData()
+
+        // Exports hold client PII. They live in their own tmp folder (so stale
+        // ones are swept before each export and after sharing) and are written
+        // with complete file protection, matching the Face ID lock on the app.
+        let day = Date.now.formatted(.iso8601.year().month().day().dateSeparator(.dash))
+        let url = Self.exportsDirectory.appending(path: "TrainMe Export \(day).json")
+        Self.removeExports()
+        try FileManager.default.createDirectory(at: Self.exportsDirectory, withIntermediateDirectories: true)
+        try data.write(to: url, options: [.atomic, .completeFileProtection])
+        return url
+    }
+
+    func exportData() async throws -> Data {
         let envelope = CurrentArchive(
             exportedAt: .now,
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0",
@@ -34,17 +53,7 @@ actor DataArchiveActor: DataArchiving {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(envelope)
-
-        // Exports hold client PII. They live in their own tmp folder (so stale
-        // ones are swept before each export and after sharing) and are written
-        // with complete file protection, matching the Face ID lock on the app.
-        let day = Date.now.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        let url = Self.exportsDirectory.appending(path: "TrainMe Export \(day).json")
-        Self.removeExports()
-        try FileManager.default.createDirectory(at: Self.exportsDirectory, withIntermediateDirectories: true)
-        try data.write(to: url, options: [.atomic, .completeFileProtection])
-        return url
+        return try encoder.encode(envelope)
     }
 
     static let exportsDirectory = FileManager.default.temporaryDirectory
@@ -60,7 +69,13 @@ actor DataArchiveActor: DataArchiving {
         defer {
             if accessing { url.stopAccessingSecurityScopedResource() }
         }
-        guard let data = try? Data(contentsOf: url) else { throw ArchiveError.unreadable }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            Log.archive.error("Import file unreadable: \(error.localizedDescription)")
+            throw ArchiveError.unreadable
+        }
         try await importData(data, mode: mode)
     }
 
@@ -76,13 +91,27 @@ actor DataArchiveActor: DataArchiving {
         }
         // Version 1 is the only version so far; older versions will decode +
         // migrate through the chain once they exist.
-        let envelope = try decoder.decode(CurrentArchive.self, from: data)
-
-        if mode == .replace {
-            try deleteAll()
+        let envelope: CurrentArchive
+        do {
+            envelope = try decoder.decode(CurrentArchive.self, from: data)
+        } catch {
+            Log.archive.error("Envelope decode failed: \(error.localizedDescription)")
+            throw ArchiveError.decodeFailed
         }
-        try upsertAll(envelope)
-        try modelContext.save()
+
+        do {
+            if mode == .replace {
+                try deleteAll()
+            }
+            try upsertAll(envelope)
+            try modelContext.save()
+        } catch {
+            // Discard anything staged on this context so a later import does
+            // not drag half-applied changes along with it.
+            modelContext.rollback()
+            Log.archive.error("Import (\(String(describing: mode))) failed, rolled back: \(error.localizedDescription)")
+            throw error
+        }
     }
 
     // MARK: - Private
