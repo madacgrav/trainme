@@ -21,6 +21,25 @@ final class SessionRunViewModel {
     var recordedSets: [UUID: [SetRecordDTO]] = [:]  // keyed by instance id
     /// Set when a mutation fails; rendered at the top of the run screen.
     var errorMessage: String?
+    /// Most recent set per exercise across the client's history, captured once at
+    /// load so the "Prev" column does not shift as sets are logged this session.
+    var previousSets: [UUID: SetRecordDTO] = [:]
+    /// Changes on every successful log; drives `.sensoryFeedback`.
+    var lastLoggedSetId: UUID?
+
+    var plannedSetCount: Int {
+        session.instances.flatMap(\.plannedEntries).reduce(0) { $0 + max($1.targetSets ?? 1, 1) }
+    }
+
+    var loggedSetCount: Int {
+        session.instances.reduce(0) { total, instance in
+            total + instance.plannedEntries.reduce(0) {
+                $0 + min(sets(instanceId: instance.id, exerciseId: $1.exerciseId).count, max($1.targetSets ?? 1, 1))
+            }
+        }
+    }
+
+    var progress: Double { plannedSetCount == 0 ? 0 : Double(loggedSetCount) / Double(plannedSetCount) }
 
     /// Series occurrences share one recurring calendar event and are created in
     /// bulk, so per-occurrence editing is not offered (see BACKLOG.md).
@@ -58,6 +77,10 @@ final class SessionRunViewModel {
         }
         for instance in session.instances {
             recordedSets[instance.id] = await loadSets(instanceId: instance.id) ?? []
+        }
+        let exerciseIds = Set(session.instances.flatMap(\.plannedEntries).map(\.exerciseId))
+        for id in exerciseIds {
+            if let last = await lastSet(exerciseId: id) { previousSets[id] = last }
         }
         await refreshSession()
     }
@@ -139,6 +162,21 @@ final class SessionRunViewModel {
         if let sets = await loadSets(instanceId: instanceId) {
             recordedSets[instanceId] = sets
         }
+    }
+
+    /// Logs a draft from the inline set table, keeping only the metrics the
+    /// exercise tracks.
+    func record(draft: SetDraft, instanceId: UUID, exerciseId: UUID) async {
+        let metrics = exercises[exerciseId]?.metrics ?? [.weight, .reps]
+        await record(
+            instanceId: instanceId,
+            exerciseId: exerciseId,
+            weight: metrics.contains(.weight) ? draft.weight : nil,
+            reps: metrics.contains(.reps) ? draft.reps : nil,
+            duration: metrics.contains(.duration) ? draft.duration : nil,
+            distance: metrics.contains(.distance) ? draft.distance.flatMap { $0 > 0 ? $0 : nil } : nil
+        )
+        if errorMessage == nil { lastLoggedSetId = UUID() }
     }
 
     func deleteSet(_ record: SetRecordDTO) async {

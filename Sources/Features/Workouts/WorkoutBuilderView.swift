@@ -155,10 +155,14 @@ struct EntryTargetEditView: View {
                     HStack {
                         Text("Weight (\(WeightFormatter.label(unit)))")
                         Spacer()
-                        TextField("—", value: $entry.targetWeight, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
+                        MetricStepper(
+                            label: "Weight (\(WeightFormatter.label(unit)))",
+                            value: Binding(
+                                get: { entry.targetWeight ?? 0 },
+                                set: { entry.targetWeight = $0 > 0 ? $0 : nil }
+                            ),
+                            step: WeightFormatter.stepIncrement(for: unit)
+                        )
                     }
                     OptionalStepper(label: "Duration (sec)", value: $entry.targetDuration, range: 5...7200, defaultValue: 60, step: 5)
                 }
@@ -186,11 +190,13 @@ struct OptionalStepper: View {
             Text(label)
             Spacer()
             if let current = value {
-                Stepper("\(current)", value: Binding(
-                    get: { current },
-                    set: { value = $0 }
-                ), in: range, step: step)
-                .fixedSize()
+                MetricStepper(
+                    label: label,
+                    value: Binding(get: { Double(current) }, set: { value = Int($0) }),
+                    step: Double(step),
+                    range: Double(range.lowerBound)...Double(range.upperBound),
+                    fractionDigits: 0
+                )
                 IconButton(title: "Clear", systemImage: "xmark.circle.fill", tint: .tertiary) { value = nil }
             } else {
                 Button("Set") { value = defaultValue }

@@ -878,8 +878,8 @@ via a private `makeSessionEnv(metrics:)` helper.
 
 ### Verification
 #### Automated
-- [ ] Test command passes (112).
-- [ ] `grep -n "SetEntryView\|PlannedEntryRow" Sources -r` → 0 lines.
+- [x] Test command passes (112).
+- [x] `grep -n "SetEntryView\|PlannedEntryRow" Sources -r` → 0 lines.
 
 #### Manual
 - [ ] On the fixture session: tap the ✓ on Bench set 3 without editing → set logs, haptic fires, row turns green, progress bar advances.
