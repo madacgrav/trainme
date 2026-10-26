@@ -261,3 +261,32 @@ private func addSession(
     #expect(weeks.map { $0.totals.byUnit[.lb] } == [1000, 1500])
     #expect(weeks[0].id < weeks[1].id)
 }
+
+@Test func topExercisesRankBySessionCountThenRecency() async throws {
+    let env = try makeEnv()
+    let squat = try await makeExercise(env, name: "Squat", unit: .lb)
+    let bench = try await makeExercise(env, name: "Bench", unit: .lb)
+    let row = try await makeExercise(env, name: "Row", unit: .lb)
+    try await addSession(env, start: daysAgo(20), sets: [(100, 5)], status: .completed, exerciseId: squat)
+    try await addSession(env, start: daysAgo(10), sets: [(120, 5)], status: .completed, exerciseId: squat)
+    try await addSession(env, start: daysAgo(5), sets: [(80, 5)], status: .completed, exerciseId: bench)
+    try await addSession(env, start: daysAgo(2), sets: [(60, 5)], status: .completed, exerciseId: row)
+    try await addSession(env, start: daysAgo(1), sets: [(200, 5)], status: .cancelled, exerciseId: bench)
+
+    let top = try await env.reporting.topExercises(clientId: env.clientId)
+    #expect(top.map(\.id) == [squat, row, bench])
+    #expect(top[0].sessionCount == 2)
+    #expect(top[0].bestWeight == 120)
+}
+
+@Test func topExercisesReportBestRepsForUnweighted() async throws {
+    let env = try makeEnv()
+    let pushup = try await makeExercise(env, name: "Push-up", unit: .lb)
+    try await addSession(env, start: daysAgo(5), sets: [(nil, 15), (nil, 12)], status: .completed, exerciseId: pushup)
+    try await addSession(env, start: daysAgo(2), sets: [(nil, 20), (nil, 10)], status: .completed, exerciseId: pushup)
+
+    let top = try await env.reporting.topExercises(clientId: env.clientId)
+    #expect(top.count == 1)
+    #expect(top[0].bestWeight == nil)
+    #expect(top[0].bestTotalReps == 30)
+}

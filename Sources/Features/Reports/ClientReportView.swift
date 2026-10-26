@@ -9,7 +9,7 @@ struct ClientReportView: View {
             if let message = viewModel.errorMessage {
                 Section { Text(message).foregroundStyle(.red) }
             }
-            if viewModel.exercisesWithData.isEmpty {
+            if viewModel.topExercises.isEmpty {
                 ContentUnavailableView(
                     "No completed sessions yet",
                     systemImage: "chart.line.uptrend.xyaxis",
@@ -52,12 +52,16 @@ struct ClientReportView: View {
                         }
                     }
                 }
-                Section("Exercises") {
-                    ForEach(viewModel.exercisesWithData) { exercise in
-                        NavigationLink(exercise.name) {
+                Section("Top exercises") {
+                    ForEach(viewModel.topExercises) { item in
+                        NavigationLink {
                             ExerciseReportView(viewModel: ExerciseReportViewModel(
-                                reporting: viewModel.reporting, client: viewModel.client, exercise: exercise
-                            ))
+                                reporting: viewModel.reporting, client: viewModel.client, exercise: item.exercise))
+                        } label: {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.exercise.name)
+                                Text(ClientReportViewModel.detail(for: item)).font(.caption).foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }

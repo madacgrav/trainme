@@ -103,6 +103,17 @@ struct WeeklyVolume: Sendable, Identifiable, Equatable {
     let totals: VolumeTotals
 }
 
+/// All-time standing of one exercise for a client, from completed sessions.
+struct ExerciseSummary: Sendable, Identifiable, Equatable {
+    /// The exercise id.
+    let id: UUID
+    let sessionCount: Int
+    let lastPerformed: Date
+    let bestWeight: Double?
+    /// Highest single-session rep total; nil when no set recorded reps.
+    let bestTotalReps: Int?
+}
+
 /// Epley estimated one-rep max. Reps of 0/nil contribute the bare weight.
 func epley1RM(weight: Double, reps: Int?) -> Double {
     weight * (1 + Double(reps ?? 0) / 30)
@@ -124,6 +135,8 @@ protocol ReportingQueries: Sendable {
     func sessionVolumes(clientId: UUID, from: Date?, to: Date) async throws -> [SessionVolume]
     /// sessionVolumes summed per calendar week, oldest first.
     func weeklyVolumes(clientId: UUID, from: Date?, to: Date) async throws -> [WeeklyVolume]
+    /// Exercises with completed-session data, most-trained first (ties: most recent).
+    func topExercises(clientId: UUID) async throws -> [ExerciseSummary]
     /// Exercises that have at least one completed-session set for this client.
     func exercisesWithData(clientId: UUID) async throws -> [UUID]
 }
@@ -232,6 +245,31 @@ actor SwiftDataReportingQueries: ReportingQueries {
                 WeeklyVolume(id: week, totals: sessions.map(\.totals).reduce(VolumeTotals(), +))
             }
             .sorted { $0.id < $1.id }
+    }
+
+    func topExercises(clientId: UUID) async throws -> [ExerciseSummary] {
+        let sessions = try completedSessions(clientId: clientId)
+        var sessionByInstance: [UUID: UUID] = [:]
+        for session in sessions {
+            for instance in session.instances { sessionByInstance[instance.id] = session.id }
+        }
+        let records = try setRecords(forInstanceIds: Array(sessionByInstance.keys))
+        return Dictionary(grouping: records, by: \.exerciseId)
+            .map { exerciseId, sets in
+                let bySession = Dictionary(grouping: sets) { sessionByInstance[$0.workoutInstanceId] ?? $0.workoutInstanceId }
+                let repTotals = bySession.values.map { $0.compactMap(\.reps).reduce(0, +) }.filter { $0 > 0 }
+                return ExerciseSummary(
+                    id: exerciseId,
+                    sessionCount: bySession.count,
+                    lastPerformed: sets.map(\.performedAt).max() ?? .distantPast,
+                    bestWeight: sets.compactMap(\.weight).max(),
+                    bestTotalReps: repTotals.max()
+                )
+            }
+            .sorted {
+                $0.sessionCount != $1.sessionCount ? $0.sessionCount > $1.sessionCount
+                                                    : $0.lastPerformed > $1.lastPerformed
+            }
     }
 
     func exercisesWithData(clientId: UUID) async throws -> [UUID] {

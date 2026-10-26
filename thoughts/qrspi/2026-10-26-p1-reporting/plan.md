@@ -1216,7 +1216,7 @@ Section("Top exercises") {
 
 ### Verification
 #### Automated
-- [ ] Test command passes (17 reporting tests).
+- [x] Test command passes (17 reporting tests).
 #### Manual
 - [ ] Device: the most-trained exercise is first with "N sessions · PB 225 lb"; a push-up exercise shows "best 30 reps"; tapping any row opens its exercise screen.
 
