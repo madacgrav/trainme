@@ -10,6 +10,8 @@ final class ClientReportViewModel {
 
     var exercisesWithData: [ExerciseDTO] = []
     var errorMessage: String?
+    var window: ReportWindow = .twelveWeeks
+    var consistency: ConsistencySummary?
 
     init(reporting: any ReportingQueries, exerciseRepo: any ExerciseRepository, client: ClientDTO) {
         self.reporting = reporting
@@ -23,9 +25,23 @@ final class ClientReportViewModel {
             let ids = Set(try await reporting.exercisesWithData(clientId: client.id))
             let all = try await exerciseRepo.all()
             exercisesWithData = all.filter { ids.contains($0.id) }
+            try await loadWindowed()
         } catch {
             Log.ui.error("client report load failed: \(error.localizedDescription)")
             errorMessage = "Couldn't load progress."
         }
+    }
+
+    /// Everything the window picker affects.
+    func reloadWindow() async {
+        do { try await loadWindowed() } catch {
+            Log.ui.error("client report window load failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't load progress."
+        }
+    }
+
+    private func loadWindowed() async throws {
+        let now = Date.now
+        consistency = try await reporting.consistency(clientId: client.id, from: window.start(from: now), to: now)
     }
 }

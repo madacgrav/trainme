@@ -38,6 +38,42 @@ struct SessionHistoryEntry: Sendable, Identifiable, Equatable {
     let sets: [SetRecordDTO]
 }
 
+/// How far back the client overview looks. Top exercises ignore it.
+enum ReportWindow: String, CaseIterable, Identifiable, Sendable {
+    case fourWeeks, twelveWeeks, all
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .fourWeeks: "4 weeks"
+        case .twelveWeeks: "12 weeks"
+        case .all: "All time"
+        }
+    }
+
+    /// nil means unbounded.
+    func start(from now: Date, calendar: Calendar = .current) -> Date? {
+        switch self {
+        case .fourWeeks: calendar.date(byAdding: .weekOfYear, value: -4, to: now)
+        case .twelveWeeks: calendar.date(byAdding: .weekOfYear, value: -12, to: now)
+        case .all: nil
+        }
+    }
+}
+
+/// Sessions in a window bucketed by status. `unresolved` are past sessions still
+/// marked scheduled; they are reported but excluded from the rate.
+struct ConsistencySummary: Sendable, Equatable {
+    let completed: Int
+    let cancelled: Int
+    let noShow: Int
+    let unresolved: Int
+
+    var resolved: Int { completed + cancelled + noShow }
+    /// 0...1, or nil when nothing has been resolved yet.
+    var rate: Double? { resolved == 0 ? nil : Double(completed) / Double(resolved) }
+}
+
 /// Epley estimated one-rep max. Reps of 0/nil contribute the bare weight.
 func epley1RM(weight: Double, reps: Int?) -> Double {
     weight * (1 + Double(reps ?? 0) / 30)
@@ -52,6 +88,8 @@ protocol ReportingQueries: Sendable {
     func personalBest(clientId: UUID, exerciseId: UUID) async throws -> SetRecordDTO?
     /// Completed-session sets for this exercise grouped by session, newest first.
     func historyBySession(clientId: UUID, exerciseId: UUID) async throws -> [SessionHistoryEntry]
+    /// Status counts for sessions with startAt in [from, to). Future sessions never count.
+    func consistency(clientId: UUID, from: Date?, to: Date) async throws -> ConsistencySummary
     /// Exercises that have at least one completed-session set for this client.
     func exercisesWithData(clientId: UUID) async throws -> [UUID]
 }
@@ -107,6 +145,25 @@ actor SwiftDataReportingQueries: ReportingQueries {
                 )
             }
             .sorted { $0.sessionStart > $1.sessionStart }
+    }
+
+    func consistency(clientId: UUID, from: Date?, to: Date) async throws -> ConsistencySummary {
+        let floor = from ?? .distantPast
+        let sessions = try modelContext.fetch(
+            FetchDescriptor<Session>(
+                predicate: #Predicate { $0.clientId == clientId && $0.startAt >= floor && $0.startAt < to }
+            )
+        )
+        var completed = 0, cancelled = 0, noShow = 0, unresolved = 0
+        for session in sessions {
+            switch session.status {
+            case .completed: completed += 1
+            case .cancelled: cancelled += 1
+            case .noShow: noShow += 1
+            case .scheduled: unresolved += 1
+            }
+        }
+        return ConsistencySummary(completed: completed, cancelled: cancelled, noShow: noShow, unresolved: unresolved)
     }
 
     func exercisesWithData(clientId: UUID) async throws -> [UUID] {

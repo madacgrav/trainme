@@ -166,3 +166,40 @@ private func addSession(
     let points = try await env.reporting.progression(clientId: env.clientId, exerciseId: env.exerciseId)
     #expect(points.count == 1) // progression still merges by day
 }
+
+@Test func consistencyRateCountsResolvedOnly() async throws {
+    let env = try makeEnv()
+    try await addSession(env, daysAgo: 20, weight: 100, status: .completed)
+    try await addSession(env, daysAgo: 15, weight: 100, status: .completed)
+    try await addSession(env, daysAgo: 10, weight: 100, status: .completed)
+    try await addSession(env, daysAgo: 8, weight: 100, status: .cancelled)
+    try await addSession(env, daysAgo: 5, weight: 100, status: .scheduled) // forgotten
+
+    let c = try await env.reporting.consistency(clientId: env.clientId, from: nil, to: .now)
+    #expect(c == ConsistencySummary(completed: 3, cancelled: 1, noShow: 0, unresolved: 1))
+    #expect(c.rate == 0.75)
+}
+
+@Test func consistencyIgnoresFutureScheduled() async throws {
+    let env = try makeEnv()
+    try await addSession(env, daysAgo: 3, weight: 100, status: .noShow)
+    try await addSession(env, daysAgo: -3, weight: 100, status: .scheduled) // upcoming
+
+    let c = try await env.reporting.consistency(clientId: env.clientId, from: nil, to: .now)
+    #expect(c.unresolved == 0)
+    #expect(c.noShow == 1)
+    #expect(c.rate == 0)
+}
+
+@Test func consistencyRespectsWindowStart() async throws {
+    let env = try makeEnv()
+    try await addSession(env, daysAgo: 40, weight: 100, status: .cancelled)
+    try await addSession(env, daysAgo: 10, weight: 100, status: .completed)
+
+    let all = try await env.reporting.consistency(clientId: env.clientId, from: nil, to: .now)
+    #expect(all.rate == 0.5)
+    let fourWeeks = try await env.reporting.consistency(
+        clientId: env.clientId, from: ReportWindow.fourWeeks.start(from: .now), to: .now)
+    #expect(fourWeeks == ConsistencySummary(completed: 1, cancelled: 0, noShow: 0, unresolved: 0))
+    #expect(ReportWindow.all.start(from: .now) == nil)
+}

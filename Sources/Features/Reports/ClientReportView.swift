@@ -16,6 +16,29 @@ struct ClientReportView: View {
                     description: Text("Progress charts appear after recording sets in completed sessions.")
                 )
             } else {
+                Section {
+                    Picker("Window", selection: $viewModel.window) {
+                        ForEach(ReportWindow.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                if let c = viewModel.consistency {
+                    Section("Consistency") {
+                        if let rate = c.rate {
+                            LabeledContent("Completed") {
+                                Text(rate.formatted(.percent.precision(.fractionLength(0)))).fontWeight(.semibold)
+                            }
+                            Text("\(c.completed) completed · \(c.cancelled) cancelled · \(c.noShow) no-show")
+                                .font(.caption).foregroundStyle(.secondary)
+                        } else {
+                            Text("No resolved sessions in this window").foregroundStyle(.secondary)
+                        }
+                        if c.unresolved > 0 {
+                            Text("\(c.unresolved) past \(c.unresolved == 1 ? "session" : "sessions") still marked scheduled")
+                                .font(.caption).foregroundStyle(.orange)
+                        }
+                    }
+                }
                 Section("Exercises") {
                     ForEach(viewModel.exercisesWithData) { exercise in
                         NavigationLink(exercise.name) {
@@ -30,6 +53,7 @@ struct ClientReportView: View {
         .navigationTitle("\(viewModel.client.name) — Progress")
         .navigationBarTitleDisplayMode(.inline)
         .task { await viewModel.load() }
+        .onChange(of: viewModel.window) { Task { await viewModel.reloadWindow() } }
     }
 }
 

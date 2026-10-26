@@ -780,7 +780,7 @@ Add `.onChange(of: viewModel.window) { Task { await viewModel.reloadWindow() } }
 
 ### Verification
 #### Automated
-- [ ] Test command passes (12 reporting tests).
+- [x] Test command passes (12 reporting tests).
 #### Manual
 - [ ] Device: a client with 3 completed, 1 cancelled and 1 forgotten past session shows "75 %", the counts line and "1 past session still marked scheduled".
 - [ ] Device: switching 12 weeks → 4 weeks changes the counts; "All time" restores them.
