@@ -4,6 +4,7 @@ struct WorkoutListView: View {
     @State var viewModel: WorkoutListViewModel
     @State private var editingWorkout: WorkoutDTO?
     @State private var showingNew = false
+    @State private var pendingDelete: WorkoutDTO?
 
     var body: some View {
         NavigationStack {
@@ -22,7 +23,7 @@ struct WorkoutListView: View {
                     }
                     .swipeActions(edge: .trailing) {
                         Button("Delete", systemImage: "trash", role: .destructive) {
-                            Task { await viewModel.delete(id: workout.id) }
+                            pendingDelete = workout
                         }
                         Button("Duplicate", systemImage: "plus.square.on.square") {
                             Task { await viewModel.duplicate(id: workout.id) }
@@ -56,6 +57,19 @@ struct WorkoutListView: View {
                 ) {
                     Task { await viewModel.load() }
                 }
+            }
+            .confirmationDialog(
+                "Delete \"\(pendingDelete?.name ?? "")\"?",
+                isPresented: Binding(get: { pendingDelete != nil }, set: { if !$0 { pendingDelete = nil } }),
+                titleVisibility: .visible
+            ) {
+                Button("Delete workout", role: .destructive) {
+                    if let id = pendingDelete?.id { Task { await viewModel.delete(id: id) } }
+                    pendingDelete = nil
+                }
+                Button("Cancel", role: .cancel) { pendingDelete = nil }
+            } message: {
+                Text("Scheduled sessions keep their own copy; only the template is removed.")
             }
             .task { await viewModel.load() }
         }

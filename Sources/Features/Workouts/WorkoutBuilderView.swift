@@ -44,6 +44,9 @@ struct WorkoutBuilderView: View {
 
                     Button("Add exercise", systemImage: "plus") { showingPicker = true }
                 }
+                if let error = viewModel.errorMessage {
+                    Section { Text(error).foregroundStyle(.red) }
+                }
             }
             .navigationTitle(viewModel.isEditing ? "Edit Workout" : "New Workout")
             .navigationBarTitleDisplayMode(.inline)

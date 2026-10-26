@@ -15,6 +15,7 @@ struct ExerciseEditView: View {
     @State private var trackDuration: Bool
     @State private var trackDistance: Bool
     @State private var defaultUnit: Unit
+    @State private var errorMessage: String?
 
     init(repo: any ExerciseRepository, existing: ExerciseDTO? = nil, onSaved: @escaping () -> Void) {
         self.repo = repo
@@ -69,6 +70,9 @@ struct ExerciseEditView: View {
                     }
                     .pickerStyle(.segmented)
                 }
+                if let errorMessage {
+                    Section { Text(errorMessage).foregroundStyle(.red) }
+                }
             }
             .navigationTitle(existing == nil ? "New Exercise" : "Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
@@ -79,9 +83,10 @@ struct ExerciseEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            await save()
-                            onSaved()
-                            dismiss()
+                            if await save() {
+                                onSaved()
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!canSave)
@@ -90,7 +95,8 @@ struct ExerciseEditView: View {
         }
     }
 
-    private func save() async {
+    private func save() async -> Bool {
+        errorMessage = nil
         let dto = ExerciseDTO(
             id: existing?.id ?? UUID(),
             name: name.trimmingCharacters(in: .whitespaces),
@@ -101,10 +107,16 @@ struct ExerciseEditView: View {
             createdAt: existing?.createdAt ?? .now,
             updatedAt: .now
         )
-        if existing == nil {
-            _ = try? await repo.create(dto)
-        } else {
-            try? await repo.update(dto)
+        do {
+            if existing == nil {
+                _ = try await repo.create(dto)
+            } else {
+                try await repo.update(dto)
+            }
+            return true
+        } catch {
+            errorMessage = "Couldn't save the exercise. Please try again."
+            return false
         }
     }
 }

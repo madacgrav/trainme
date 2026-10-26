@@ -460,8 +460,8 @@ actor FakeNotifications: NotificationScheduling {
 
 ### Verification
 #### Automated
-- [ ] `TEST` passes (59)
-- [ ] `grep -n "role: .destructive" Sources/Features/Workouts/WorkoutListView.swift Sources/Features/Session/SessionRunView.swift Sources/Features/Clients/ClientDetailView.swift | wc -l` ≥ 5
+- [x] `TEST` passes (59)
+- [x] `grep -n "role: .destructive" Sources/Features/Workouts/WorkoutListView.swift Sources/Features/Session/SessionRunView.swift Sources/Features/Clients/ClientDetailView.swift | wc -l` ≥ 5 (7)
 #### Manual
 - [ ] Swipe-delete a workout → dialog; Cancel keeps it; Delete removes it
 - [ ] Open a scheduled session → No-show → alert; Keep leaves it scheduled

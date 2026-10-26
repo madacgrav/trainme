@@ -12,6 +12,7 @@ final class ClientEditViewModel {
     var goal: String
     var injuries: String
     var notes: String
+    var errorMessage: String?
 
     init(repo: any ClientRepository, existing: ClientDTO?) {
         self.repo = repo
@@ -32,6 +33,7 @@ final class ClientEditViewModel {
     }
 
     func save() async -> Bool {
+        errorMessage = nil
         guard let phone = normalizeE164(phoneRaw) else { return false }
         let dto = ClientDTO(
             id: existing?.id ?? UUID(),
@@ -48,6 +50,7 @@ final class ClientEditViewModel {
             try await repo.upsert(dto)
             return true
         } catch {
+            errorMessage = "Couldn't save the client. Please try again."
             return false
         }
     }

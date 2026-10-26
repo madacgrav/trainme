@@ -3,6 +3,7 @@ import SwiftUI
 struct SessionRunView: View {
     @State var viewModel: SessionRunViewModel
     @State private var showingTextReminder = false
+    @State private var pendingStatus: SessionStatus?
 
     var body: some View {
         List {
@@ -31,10 +32,10 @@ struct SessionRunView: View {
                         Task { await viewModel.setStatus(.completed) }
                     }
                     Button("Cancelled", systemImage: "xmark.circle", role: .destructive) {
-                        Task { await viewModel.setStatus(.cancelled) }
+                        pendingStatus = .cancelled
                     }
                     Button("No-show", systemImage: "person.fill.xmark", role: .destructive) {
-                        Task { await viewModel.setStatus(.noShow) }
+                        pendingStatus = .noShow
                     }
                 }
             }
@@ -59,6 +60,18 @@ struct SessionRunView: View {
                 .ignoresSafeArea()
             }
         }
+        .alert(
+            pendingStatus == .noShow ? "Mark as no-show?" : "Cancel this session?",
+            isPresented: Binding(get: { pendingStatus != nil }, set: { if !$0 { pendingStatus = nil } })
+        ) {
+            Button(pendingStatus == .noShow ? "Mark no-show" : "Cancel session", role: .destructive) {
+                if let status = pendingStatus { Task { await viewModel.setStatus(status) } }
+                pendingStatus = nil
+            }
+            Button("Keep", role: .cancel) { pendingStatus = nil }
+        } message: {
+            Text("This can't be changed back from the app.")
+        }
         .task { await viewModel.load() }
     }
 
@@ -80,6 +93,7 @@ private struct PlannedEntryRow: View {
     let instanceId: UUID
 
     @State private var showingEntry = false
+    @State private var pendingDeleteSet: SetRecordDTO?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -106,7 +120,7 @@ private struct PlannedEntryRow: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Delete set", systemImage: "minus.circle", role: .destructive) {
-                        Task { await viewModel.deleteSet(set) }
+                        pendingDeleteSet = set
                     }
                     .labelStyle(.iconOnly)
                     .font(.caption)
@@ -123,6 +137,17 @@ private struct PlannedEntryRow: View {
                 viewModel: viewModel
             )
             .presentationDetents([.medium])
+        }
+        .confirmationDialog(
+            "Delete this set?",
+            isPresented: Binding(get: { pendingDeleteSet != nil }, set: { if !$0 { pendingDeleteSet = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete set", role: .destructive) {
+                if let set = pendingDeleteSet { Task { await viewModel.deleteSet(set) } }
+                pendingDeleteSet = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDeleteSet = nil }
         }
     }
 

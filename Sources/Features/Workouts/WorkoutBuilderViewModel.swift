@@ -11,6 +11,7 @@ final class WorkoutBuilderViewModel {
     var name: String
     var entries: [WorkoutEntryDTO]
     var exerciseNames: [UUID: String] = [:]
+    var errorMessage: String?
 
     init(workoutRepo: any WorkoutRepository, exerciseRepo: any ExerciseRepository, existing: WorkoutDTO?) {
         self.workoutRepo = workoutRepo
@@ -62,6 +63,7 @@ final class WorkoutBuilderViewModel {
     }
 
     func save() async -> Bool {
+        errorMessage = nil
         renumber()
         let dto = WorkoutDTO(
             id: existing?.id ?? UUID(),
@@ -74,6 +76,7 @@ final class WorkoutBuilderViewModel {
             try await workoutRepo.upsert(dto)
             return true
         } catch {
+            errorMessage = "Couldn't save the workout. Please try again."
             return false
         }
     }

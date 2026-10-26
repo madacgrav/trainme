@@ -3,6 +3,7 @@ import SwiftUI
 struct ClientDetailView: View {
     @State var viewModel: ClientDetailViewModel
     @State private var showingEdit = false
+    @State private var confirmingArchive = false
 
     var body: some View {
         List {
@@ -58,11 +59,28 @@ struct ClientDetailView: View {
                     viewModel.client.isArchived ? "Unarchive" : "Archive",
                     systemImage: "archivebox"
                 ) {
-                    Task { await viewModel.toggleArchived() }
+                    confirmingArchive = true
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
             }
+        }
+        .confirmationDialog(
+            viewModel.client.isArchived ? "Unarchive \(viewModel.client.name)?" : "Archive \(viewModel.client.name)?",
+            isPresented: $confirmingArchive,
+            titleVisibility: .visible
+        ) {
+            Button(
+                viewModel.client.isArchived ? "Unarchive" : "Archive",
+                role: viewModel.client.isArchived ? nil : .destructive
+            ) {
+                Task { await viewModel.toggleArchived() }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(viewModel.client.isArchived
+                 ? "The client returns to the roster and the client picker."
+                 : "Archived clients leave the roster and the client picker. Their history is kept.")
         }
         .sheet(isPresented: $showingEdit) {
             ClientEditView(repo: viewModel.repository, existing: viewModel.client) {

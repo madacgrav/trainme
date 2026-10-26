@@ -17,6 +17,7 @@ struct SessionEditView: View {
     @State private var repeatWeekdays: Set<Int> = []
     @State private var repeatWeeks = 8
     @State private var addToCalendar = false
+    @State private var errorMessage: String?
 
     private let clientRepo: any ClientRepository
     private let workoutRepo: any WorkoutRepository
@@ -105,6 +106,9 @@ struct SessionEditView: View {
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
                 }
+                if let errorMessage {
+                    Section { Text(errorMessage).foregroundStyle(.red) }
+                }
                 Section {
                     Toggle("Add to iPhone calendar", isOn: $addToCalendar)
                 } footer: {
@@ -120,9 +124,10 @@ struct SessionEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            await save()
-                            onSaved()
-                            dismiss()
+                            if await save() {
+                                onSaved()
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!canSave)
@@ -135,8 +140,9 @@ struct SessionEditView: View {
         }
     }
 
-    private func save() async {
-        guard let clientId = selectedClientId else { return }
+    private func save() async -> Bool {
+        guard let clientId = selectedClientId else { return false }
+        errorMessage = nil
         let dto = SessionDTO(
             id: UUID(),
             clientId: clientId,
@@ -161,8 +167,14 @@ struct SessionEditView: View {
                 endDate: nil,
                 occurrenceCount: nil
             )
-            let series = try? await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
-            if addToCalendar, let series, let firstStart = series.occurrences.first, await calendar.requestAccess() {
+            let series: ScheduledSeries
+            do {
+                series = try await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
+            } catch {
+                errorMessage = "Couldn't schedule the session. Please try again."
+                return false
+            }
+            if addToCalendar, let firstStart = series.occurrences.first, await calendar.requestAccess() {
                 // Anchor the calendar event on the first real occurrence and cap
                 // it at the number of sessions actually created. EventKit always
                 // keeps the event's own start date even when its weekday is not
@@ -178,11 +190,18 @@ struct SessionEditView: View {
                 }
             }
         } else {
-            try? await sessionRepo.schedule(dto, attaching: workoutIds)
+            do {
+                try await sessionRepo.schedule(dto, attaching: workoutIds)
+            } catch {
+                errorMessage = "Couldn't schedule the session. Please try again."
+                return false
+            }
+            // Calendar failures never block saving; the session is already stored.
             if addToCalendar, await calendar.requestAccess(),
                let eventId = try? await calendar.push(dto, clientName: clientName, recurrence: nil) {
                 try? await sessionRepo.setEventIdentifier(id: dto.id, eventId)
             }
         }
+        return true
     }
 }
