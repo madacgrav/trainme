@@ -8,6 +8,7 @@ struct RootView: View {
     @AppStorage("lastExportAt") private var lastExportAt: Double = 0
     @State private var selectedTab = 0
     @State private var exportDue = false
+    @State private var seedFailed = false
     @State private var reminders: ReminderCoordinator
 
     init(container: ModelContainer) {
@@ -78,11 +79,23 @@ struct RootView: View {
             // A successful export clears the badge immediately.
             Task { exportDue = await reminders.exportReminderIsDue() }
         }
+        .alert("Couldn't load the exercise library", isPresented: $seedFailed) {
+            Button("OK") {}
+        } message: {
+            Text("You can add exercises manually from the Exercises tab, or restart the app to try again.")
+        }
         .task {
             let container = container
-            await Task.detached {
-                try? await SeedImporter.seedIfEmpty(repo: SwiftDataExerciseRepository(modelContainer: container))
+            let seeded: Bool = await Task.detached {
+                do {
+                    try await SeedImporter.seedIfEmpty(repo: SwiftDataExerciseRepository(modelContainer: container))
+                    return true
+                } catch {
+                    Log.persistence.error("Seed import failed: \(error.localizedDescription)")
+                    return false
+                }
             }.value
+            seedFailed = !seeded
             await reminders.requestAuthorization()
             exportDue = await reminders.exportReminderIsDue()
         }

@@ -14,6 +14,11 @@ struct SessionRunView: View {
 
     var body: some View {
         List {
+            if let errorMessage = viewModel.errorMessage {
+                Section {
+                    Text(errorMessage).foregroundStyle(.red)
+                }
+            }
             if let injuries = viewModel.clientInjuries, !injuries.isEmpty {
                 Section {
                     Label(injuries, systemImage: "exclamationmark.triangle.fill")
@@ -115,8 +120,9 @@ struct SessionRunView: View {
         .alert("Delete this session?", isPresented: $confirmingDelete) {
             Button("Delete", role: .destructive) {
                 Task {
-                    await viewModel.delete()
-                    dismiss()
+                    if await viewModel.delete() {
+                        dismiss()
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}

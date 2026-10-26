@@ -7,6 +7,11 @@ struct ClientDetailView: View {
 
     var body: some View {
         List {
+            if let errorMessage = viewModel.errorMessage {
+                Section {
+                    Text(errorMessage).foregroundStyle(.red)
+                }
+            }
             Section("Contact") {
                 LabeledContent("Phone", value: viewModel.client.phoneE164)
                 if let goal = viewModel.client.goal {

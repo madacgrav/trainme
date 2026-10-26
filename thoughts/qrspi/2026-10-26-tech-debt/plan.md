@@ -1096,9 +1096,9 @@ the record test (see `Tests/RecordingTests.swift` for the arrangement).
 
 ### Verification
 #### Automated
-- [ ] Test command passes (3 new view-model tests)
-- [ ] `grep -c "try?" Sources/Features/Session/SessionRunViewModel.swift` → 0
-- [ ] `grep -rn "try?" Sources | grep -v "removeItem\|contentsOf\|VersionProbe\|JSONEncoder\|JSONDecoder\|Features/.*ViewModel.swift:.*all()\|search(" | wc -l` → small; review each remaining hit is a list load or file cleanup
+- [x] Test command passes (3 new view-model tests)
+- [x] `grep -c "try?" Sources/Features/Session/SessionRunViewModel.swift` → 0
+- [x] `grep -rn "try?" Sources | grep -v "removeItem\|contentsOf\|VersionProbe\|JSONEncoder\|JSONDecoder\|Features/.*ViewModel.swift:.*all()\|search(" | wc -l` → small; review each remaining hit is a list load or file cleanup
 #### Manual
 - [ ] Smoke on device: log a set, delete a set, cancel a session, delete a session, edit notes. No regressions.
 
