@@ -19,7 +19,9 @@ final class ClientReportViewModel {
         self.client = client
     }
 
-    var hasEnoughData: Bool { points.count >= 2 }
+    var hasEnoughData: Bool {
+        points.filter { $0.topSetWeight != nil }.count >= ProgressPoint.minimumPoints
+    }
 
     func load() async {
         let ids = Set((try? await reporting.exercisesWithData(clientId: client.id)) ?? [])

@@ -50,6 +50,14 @@ struct ClientReportView: View {
                         unitLabel: WeightFormatter.label(selectedUnit)
                     )
                 }
+                Section("Total reps") {
+                    ExerciseProgressChart(
+                        points: viewModel.points,
+                        personalBest: nil,
+                        metric: \.totalRepsMetric,
+                        unitLabel: "reps"
+                    )
+                }
             }
         }
         .navigationTitle("\(viewModel.client.name) — Progress")
@@ -100,11 +108,16 @@ struct ClientReportView: View {
 struct ExerciseProgressChart: View {
     let points: [ProgressPoint]
     let personalBest: SetRecordDTO?
-    let metric: KeyPath<ProgressPoint, Double>
+    let metric: KeyPath<ProgressPoint, Double?>
     let unitLabel: String
 
+    /// Only days that have this metric are plotted and counted.
+    private var plotted: [(point: ProgressPoint, value: Double)] {
+        points.compactMap { point in point[keyPath: metric].map { (point, $0) } }
+    }
+
     var body: some View {
-        if points.count < 2 {
+        if plotted.count < ProgressPoint.minimumPoints {
             ContentUnavailableView(
                 "Not enough data yet",
                 systemImage: "chart.xyaxis.line",
@@ -113,10 +126,10 @@ struct ExerciseProgressChart: View {
             .frame(height: 180)
         } else {
             Chart {
-                ForEach(points) { point in
+                ForEach(plotted, id: \.point.id) { entry in
                     LineMark(
-                        x: .value("Date", point.date, unit: .day),
-                        y: .value("Weight", point[keyPath: metric])
+                        x: .value("Date", entry.point.date, unit: .day),
+                        y: .value(unitLabel, entry.value)
                     )
                     .interpolationMethod(.monotone)
                     .symbol(.circle)

@@ -2,20 +2,31 @@ import Foundation
 import SwiftData
 
 struct ProgressPoint: Sendable, Identifiable, Equatable {
+    /// Fewer points than this and a chart shows "Not enough data yet".
+    static let minimumPoints = 2
+
     let id: UUID
     let date: Date
-    let topSetWeight: Double
-    let est1RM: Double
+    /// nil when no set that day had a weight (e.g. bodyweight work).
+    let topSetWeight: Double?
+    let est1RM: Double?
+    /// Sum of reps across every set that day; 0 when no set recorded reps.
+    let totalReps: Int
 
-    init(date: Date, topSetWeight: Double, est1RM: Double) {
+    init(date: Date, topSetWeight: Double?, est1RM: Double?, totalReps: Int) {
         self.id = UUID()
         self.date = date
         self.topSetWeight = topSetWeight
         self.est1RM = est1RM
+        self.totalReps = totalReps
     }
 
+    /// Reps as an optional metric so the chart can treat it like the weight series.
+    var totalRepsMetric: Double? { totalReps > 0 ? Double(totalReps) : nil }
+
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.date == rhs.date && lhs.topSetWeight == rhs.topSetWeight && lhs.est1RM == rhs.est1RM
+        lhs.date == rhs.date && lhs.topSetWeight == rhs.topSetWeight
+            && lhs.est1RM == rhs.est1RM && lhs.totalReps == rhs.totalReps
     }
 }
 
@@ -27,7 +38,7 @@ func epley1RM(weight: Double, reps: Int?) -> Double {
 protocol ReportingQueries: Sendable {
     /// All set records for a client+exercise from COMPLETED sessions only.
     func history(clientId: UUID, exerciseId: UUID) async throws -> [SetRecordDTO]
-    /// One point per day: max top-set weight and best Epley est. 1RM.
+    /// One point per day: max top-set weight, best Epley est. 1RM (nil without weighted sets) and total reps.
     func progression(clientId: UUID, exerciseId: UUID) async throws -> [ProgressPoint]
     /// The heaviest completed set for this client+exercise.
     func personalBest(clientId: UUID, exerciseId: UUID) async throws -> SetRecordDTO?
@@ -46,15 +57,17 @@ actor SwiftDataReportingQueries: ReportingQueries {
 
     func progression(clientId: UUID, exerciseId: UUID) async throws -> [ProgressPoint] {
         let records = try await history(clientId: clientId, exerciseId: exerciseId)
-            .filter { $0.weight != nil }
+            .filter { $0.weight != nil || $0.reps != nil }
         let calendar = Calendar.current
         let byDay = Dictionary(grouping: records) { calendar.startOfDay(for: $0.performedAt) }
         return byDay
             .map { day, sets in
-                ProgressPoint(
+                let weighted = sets.filter { $0.weight != nil }
+                return ProgressPoint(
                     date: day,
-                    topSetWeight: sets.compactMap(\.weight).max() ?? 0,
-                    est1RM: sets.map { epley1RM(weight: $0.weight ?? 0, reps: $0.reps) }.max() ?? 0
+                    topSetWeight: weighted.compactMap(\.weight).max(),
+                    est1RM: weighted.map { epley1RM(weight: $0.weight ?? 0, reps: $0.reps) }.max(),
+                    totalReps: sets.compactMap(\.reps).reduce(0, +)
                 )
             }
             .sorted { $0.date < $1.date }

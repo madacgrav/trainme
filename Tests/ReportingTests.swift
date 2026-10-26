@@ -19,18 +19,20 @@ private func makeEnv() throws -> Env {
     )
 }
 
-/// Schedules a session with one instance, records one set, applies the status.
+/// Schedules a session with one instance, records the given sets, applies the status.
+/// Returns the session id.
+@discardableResult
 private func addSession(
     _ env: Env,
-    daysAgo: Int,
-    weight: Double,
-    reps: Int = 5,
-    status: SessionStatus
-) async throws {
-    let start = Calendar.current.date(byAdding: .day, value: -daysAgo, to: .now)!
+    start: Date,
+    sets: [(weight: Double?, reps: Int?)],
+    status: SessionStatus,
+    exerciseId: UUID? = nil
+) async throws -> UUID {
+    let exerciseId = exerciseId ?? env.exerciseId
     let template = WorkoutDTO(
         id: UUID(), name: "W",
-        entries: [WorkoutEntryDTO(id: UUID(), exerciseId: env.exerciseId, order: 0, targetSets: nil, targetReps: nil, targetWeight: nil, targetDuration: nil)],
+        entries: [WorkoutEntryDTO(id: UUID(), exerciseId: exerciseId, order: 0, targetSets: nil, targetReps: nil, targetWeight: nil, targetDuration: nil)],
         createdAt: .now, updatedAt: .now
     )
     try await env.workouts.upsert(template)
@@ -42,12 +44,28 @@ private func addSession(
     )
     try await env.sessions.schedule(dto, attaching: [template.id])
     let instanceId = try await env.sessions.get(id: dto.id)!.instances.first!.id
-    try await env.sessions.recordSet(SetRecordDTO(
-        id: UUID(), workoutInstanceId: instanceId, exerciseId: env.exerciseId,
-        setIndex: 0, weight: weight, reps: reps, duration: nil, distance: nil,
-        rpe: nil, performedAt: start, createdAt: .now, updatedAt: .now
-    ))
+    for (index, set) in sets.enumerated() {
+        try await env.sessions.recordSet(SetRecordDTO(
+            id: UUID(), workoutInstanceId: instanceId, exerciseId: exerciseId,
+            setIndex: index, weight: set.weight, reps: set.reps, duration: nil, distance: nil,
+            rpe: nil, performedAt: start.addingTimeInterval(Double(index) * 60),
+            createdAt: .now, updatedAt: .now
+        ))
+    }
     try await env.sessions.setStatus(id: dto.id, status)
+    return dto.id
+}
+
+private func daysAgo(_ days: Int) -> Date {
+    Calendar.current.date(byAdding: .day, value: -days, to: .now)!
+}
+
+/// One-set convenience used by the original tests.
+@discardableResult
+private func addSession(
+    _ env: Env, daysAgo days: Int, weight: Double?, reps: Int? = 5, status: SessionStatus
+) async throws -> UUID {
+    try await addSession(env, start: daysAgo(days), sets: [(weight, reps)], status: status)
 }
 
 @Test func progressionExcludesCancelledAndNoShow() async throws {
@@ -59,7 +77,7 @@ private func addSession(
 
     let points = try await env.reporting.progression(clientId: env.clientId, exerciseId: env.exerciseId)
     #expect(points.count == 2)
-    #expect(points.map(\.topSetWeight) == [185, 195])
+    #expect(points.compactMap(\.topSetWeight) == [185, 195])
 }
 
 @Test func personalBestIsHeaviestCompletedSet() async throws {
@@ -96,4 +114,28 @@ private func addSession(
 
     try await addSession(env, daysAgo: 3, weight: 185, status: .completed)
     #expect(try await env.reporting.exercisesWithData(clientId: env.clientId) == [env.exerciseId])
+}
+
+@Test func totalRepsSumsAcrossSets() async throws {
+    let env = try makeEnv()
+    try await addSession(env, start: daysAgo(7), sets: [(185, 5), (185, 5), (190, 3)], status: .completed)
+
+    let points = try await env.reporting.progression(clientId: env.clientId, exerciseId: env.exerciseId)
+    #expect(points.count == 1)
+    #expect(points.first?.totalReps == 13)
+    #expect(points.first?.topSetWeight == 190)
+}
+
+@Test func repsOnlySetsProduceRepsPointWithoutWeight() async throws {
+    let env = try makeEnv()
+    try await addSession(env, daysAgo: 7, weight: nil, reps: 20, status: .completed)
+    try await addSession(env, daysAgo: 3, weight: nil, reps: 25, status: .completed)
+
+    let points = try await env.reporting.progression(clientId: env.clientId, exerciseId: env.exerciseId)
+    #expect(points.map(\.totalReps) == [20, 25])
+    #expect(points.allSatisfy { $0.topSetWeight == nil && $0.est1RM == nil })
+    #expect(points.compactMap(\.totalRepsMetric).count == 2)
+
+    let pb = try await env.reporting.personalBest(clientId: env.clientId, exerciseId: env.exerciseId)
+    #expect(pb == nil)
 }
