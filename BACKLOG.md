@@ -12,20 +12,18 @@ Tech debt and test gaps from that review (rows 20–27) were addressed in
 [#32](https://github.com/madacgrav/trainme/pull/32); see the [Done](#done) table and
 `thoughts/qrspi/2026-10-26-tech-debt/` for the design and plan.
 
+P1 reporting features (rows 1–4, 9, 10) were addressed in
+[#34](https://github.com/madacgrav/trainme/pull/34); see the [Done](#done) table and
+`thoughts/qrspi/2026-10-26-p1-reporting/` for the design and plan.
+
 ## P1 — features
 
 | # | Item | Why / PRD ref | Evidence | Issue |
 |---|------|---------------|----------|-------|
-| 1 | Session volume per session / week | PRD §8 P1 | No volume computation in `Sources/` | [#3](https://github.com/madacgrav/trainme/issues/3) |
-| 2 | Training consistency (completed vs scheduled; cancelled/no-show counted) | PRD §8 P1 | No consistency computation in `Sources/` | [#4](https://github.com/madacgrav/trainme/issues/4) |
-| 3 | Client-level summary of top exercises | PRD §8 P1 | No summary view | [#5](https://github.com/madacgrav/trainme/issues/5) |
-| 4 | Per-exercise history list (dates, weights, reps) | PRD §5.6 | `ReportingQueries.history` feeds charts only; no list UI | [#6](https://github.com/madacgrav/trainme/issues/6) |
 | 5 | Series edit/cancel and shared calendar event update/removal | decisions #3/#4 | `SessionRunViewModel.setStatus` and `delete` skip calendar work for series | [#7](https://github.com/madacgrav/trainme/issues/7) |
 | 6 | Week view on Schedule | PRD §5.4 | `ScheduleView` is a month picker plus one-day list | [#8](https://github.com/madacgrav/trainme/issues/8) |
 | 7 | Inline "create exercise" from the workout picker | PRD §4.3 | `ExercisePickerView` has no create action | [#9](https://github.com/madacgrav/trainme/issues/9) |
 | 8 | Browse and unarchive archived clients | PRD §5.1 | No list uses `allIncludingArchived`; unarchive only from an open detail screen | [#10](https://github.com/madacgrav/trainme/issues/10) |
-| 9 | Report as PNG image | PRD §5.9 "PDF/image" | `ReportExporter` is PDF-only | [#11](https://github.com/madacgrav/trainme/issues/11) |
-| 10 | Total-reps progression chart | PRD §8 P0 alternative | Only the Epley 1RM chart exists | [#12](https://github.com/madacgrav/trainme/issues/12) |
 
 ## P2 — features
 
@@ -61,6 +59,16 @@ Addressed in [#32](https://github.com/madacgrav/trainme/pull/32) (one commit per
 | 26 | AppLock, EventKit write path, notification delivery, ReportExporter, view models, UI tests | Partial: `SessionRunViewModel` failure paths, notification gate, calendar outcome resolution, coordinator status tested via fakes. Still open: AppLock, ReportExporter, real EventKit/UNUserNotificationCenter, UI tests | [#28](https://github.com/madacgrav/trainme/issues/28) |
 | 27 | Replace-import into a non-empty store; `importArchive(url:)` failure paths | `Tests/SafeImporterTests.swift` covers both plus mid-import failure restore and malformed body | [#29](https://github.com/madacgrav/trainme/issues/29) |
 
-Still worth a look (found while doing the above, not fixed): `ClientReportView` swallows a
-failed PDF render; a failed `upcoming` fetch in `ReminderCoordinator.refresh` clears all
-pending alerts instead of leaving them.
+Still worth a look (found while doing the above, not fixed): a failed `upcoming` fetch in
+`ReminderCoordinator.refresh` clears all pending alerts instead of leaving them.
+
+Addressed in [#34](https://github.com/madacgrav/trainme/pull/34) (one commit per phase).
+
+| # | Item | Resolution | Issue |
+|---|------|------------|-------|
+| 1 | Session volume per session / week | `sessionVolumes` / `weeklyVolumes` on `ReportingQueries`; per-unit totals, never converted; overview bar chart + session rows | [#3](https://github.com/madacgrav/trainme/issues/3) |
+| 2 | Training consistency | `consistency(clientId:from:to:)`; completed ÷ resolved, unresolved past sessions reported separately; window picker 4w / 12w / all | [#4](https://github.com/madacgrav/trainme/issues/4) |
+| 3 | Client-level summary of top exercises | `topExercises` ranked by session count then recency; overview rows link to the exercise screen | [#5](https://github.com/madacgrav/trainme/issues/5) |
+| 4 | Per-exercise history list | `historyBySession`; `ExerciseReportView` "History" section | [#6](https://github.com/madacgrav/trainme/issues/6) |
+| 9 | Report as PNG image | `ReportExporter.render` writes PDF and PNG at 3×; Share menu on both screens | [#11](https://github.com/madacgrav/trainme/issues/11) |
+| 10 | Total-reps progression chart | `ProgressPoint.totalReps`; third chart on the exercise screen and page | [#12](https://github.com/madacgrav/trainme/issues/12) |
