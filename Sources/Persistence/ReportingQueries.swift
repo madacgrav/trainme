@@ -30,6 +30,14 @@ struct ProgressPoint: Sendable, Identifiable, Equatable {
     }
 }
 
+/// Every set of one exercise in one completed session, in set order.
+struct SessionHistoryEntry: Sendable, Identifiable, Equatable {
+    /// The workout instance id.
+    let id: UUID
+    let sessionStart: Date
+    let sets: [SetRecordDTO]
+}
+
 /// Epley estimated one-rep max. Reps of 0/nil contribute the bare weight.
 func epley1RM(weight: Double, reps: Int?) -> Double {
     weight * (1 + Double(reps ?? 0) / 30)
@@ -42,6 +50,8 @@ protocol ReportingQueries: Sendable {
     func progression(clientId: UUID, exerciseId: UUID) async throws -> [ProgressPoint]
     /// The heaviest completed set for this client+exercise.
     func personalBest(clientId: UUID, exerciseId: UUID) async throws -> SetRecordDTO?
+    /// Completed-session sets for this exercise grouped by session, newest first.
+    func historyBySession(clientId: UUID, exerciseId: UUID) async throws -> [SessionHistoryEntry]
     /// Exercises that have at least one completed-session set for this client.
     func exercisesWithData(clientId: UUID) async throws -> [UUID]
 }
@@ -79,27 +89,60 @@ actor SwiftDataReportingQueries: ReportingQueries {
             .max { ($0.weight ?? 0) < ($1.weight ?? 0) }
     }
 
+    func historyBySession(clientId: UUID, exerciseId: UUID) async throws -> [SessionHistoryEntry] {
+        let sessions = try completedSessions(clientId: clientId)
+        var startByInstance: [UUID: Date] = [:]
+        for session in sessions {
+            for instance in session.instances { startByInstance[instance.id] = session.startAt }
+        }
+        let records = try setRecords(forInstanceIds: Array(startByInstance.keys))
+            .filter { $0.exerciseId == exerciseId }
+        return Dictionary(grouping: records, by: \.workoutInstanceId)
+            .compactMap { instanceId, sets -> SessionHistoryEntry? in
+                guard let start = startByInstance[instanceId] else { return nil }
+                return SessionHistoryEntry(
+                    id: instanceId,
+                    sessionStart: start,
+                    sets: sets.sorted { $0.setIndex < $1.setIndex }.map(SetRecordDTO.init)
+                )
+            }
+            .sorted { $0.sessionStart > $1.sessionStart }
+    }
+
     func exercisesWithData(clientId: UUID) async throws -> [UUID] {
         Array(Set(try completedSetRecords(clientId: clientId).map(\.exerciseId)))
     }
 
     // MARK: - Private
 
-    /// Set records joined to COMPLETED sessions for the client. Cancelled and
-    /// no-show sessions are excluded from all reporting (PRD §8 data honesty).
-    private func completedSetRecords(clientId: UUID) throws -> [SetRecord] {
+    /// Completed sessions for the client, optionally bounded by startAt.
+    private func completedSessions(clientId: UUID, from: Date? = nil, to: Date? = nil) throws -> [Session] {
         let completedRaw = SessionStatus.completed.rawValue
-        let sessions = try modelContext.fetch(
+        let floor = from ?? .distantPast
+        let ceiling = to ?? .distantFuture
+        return try modelContext.fetch(
             FetchDescriptor<Session>(
-                predicate: #Predicate { $0.clientId == clientId && $0.statusRaw == completedRaw }
+                predicate: #Predicate {
+                    $0.clientId == clientId && $0.statusRaw == completedRaw
+                        && $0.startAt >= floor && $0.startAt < ceiling
+                }
             )
         )
-        let instanceIds = sessions.flatMap { $0.instances.map(\.id) }
+    }
+
+    private func setRecords(forInstanceIds instanceIds: [UUID]) throws -> [SetRecord] {
         guard !instanceIds.isEmpty else { return [] }
         return try modelContext.fetch(
             FetchDescriptor<SetRecord>(
                 predicate: #Predicate { instanceIds.contains($0.workoutInstanceId) }
             )
         )
+    }
+
+    /// Set records joined to COMPLETED sessions for the client. Cancelled and
+    /// no-show sessions are excluded from all reporting (PRD §8 data honesty).
+    private func completedSetRecords(clientId: UUID) throws -> [SetRecord] {
+        let sessions = try completedSessions(clientId: clientId)
+        return try setRecords(forInstanceIds: sessions.flatMap { $0.instances.map(\.id) })
     }
 }

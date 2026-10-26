@@ -4,12 +4,11 @@ import SwiftUI
 struct ClientReportView: View {
     @State var viewModel: ClientReportViewModel
 
-    private var selectedUnit: Unit {
-        viewModel.exercisesWithData.first { $0.id == viewModel.selectedExerciseId }?.defaultUnit ?? .lb
-    }
-
     var body: some View {
         List {
+            if let message = viewModel.errorMessage {
+                Section { Text(message).foregroundStyle(.red) }
+            }
             if viewModel.exercisesWithData.isEmpty {
                 ContentUnavailableView(
                     "No completed sessions yet",
@@ -17,91 +16,20 @@ struct ClientReportView: View {
                     description: Text("Progress charts appear after recording sets in completed sessions.")
                 )
             } else {
-                Section {
-                    Picker("Exercise", selection: $viewModel.selectedExerciseId) {
-                        ForEach(viewModel.exercisesWithData) { exercise in
-                            Text(exercise.name).tag(UUID?.some(exercise.id))
+                Section("Exercises") {
+                    ForEach(viewModel.exercisesWithData) { exercise in
+                        NavigationLink(exercise.name) {
+                            ExerciseReportView(viewModel: ExerciseReportViewModel(
+                                reporting: viewModel.reporting, client: viewModel.client, exercise: exercise
+                            ))
                         }
                     }
-                }
-
-                if let pb = viewModel.personalBest, let weight = pb.weight {
-                    Section {
-                        LabeledContent("Personal best") {
-                            Text(WeightFormatter.string(weight, unit: selectedUnit))
-                                .fontWeight(.semibold)
-                        }
-                    }
-                }
-
-                Section("Top-set weight") {
-                    ExerciseProgressChart(
-                        points: viewModel.points,
-                        personalBest: viewModel.personalBest,
-                        metric: \.topSetWeight,
-                        unitLabel: WeightFormatter.label(selectedUnit)
-                    )
-                }
-                Section("Estimated 1RM (Epley)") {
-                    ExerciseProgressChart(
-                        points: viewModel.points,
-                        personalBest: nil,
-                        metric: \.est1RM,
-                        unitLabel: WeightFormatter.label(selectedUnit)
-                    )
-                }
-                Section("Total reps") {
-                    ExerciseProgressChart(
-                        points: viewModel.points,
-                        personalBest: nil,
-                        metric: \.totalRepsMetric,
-                        unitLabel: "reps"
-                    )
                 }
             }
         }
         .navigationTitle("\(viewModel.client.name) — Progress")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            if let pdfURL {
-                ShareLink(item: pdfURL) {
-                    Label("Share report", systemImage: "square.and.arrow.up")
-                }
-            }
-        }
-        .task {
-            await viewModel.load()
-            renderPDF()
-        }
-        .onChange(of: viewModel.selectedExerciseId) {
-            Task {
-                await viewModel.loadChart()
-                renderPDF()
-            }
-        }
-        .onDisappear {
-            // Rendered reports hold client PII: sweep them once the screen is gone.
-            pdfURL = nil
-            ReportExporter.removeReports()
-        }
-    }
-
-    @State private var pdfURL: URL?
-
-    private func renderPDF() {
-        guard viewModel.hasEnoughData,
-              let exercise = viewModel.exercisesWithData.first(where: { $0.id == viewModel.selectedExerciseId })
-        else {
-            pdfURL = nil
-            return
-        }
-        pdfURL = try? ReportExporter.renderPDF(
-            clientName: viewModel.client.name,
-            exerciseName: exercise.name,
-            points: viewModel.points,
-            personalBest: viewModel.personalBest,
-            unit: selectedUnit
-        )
+        .task { await viewModel.load() }
     }
 }
 

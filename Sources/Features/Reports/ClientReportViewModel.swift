@@ -4,14 +4,12 @@ import Observation
 @MainActor
 @Observable
 final class ClientReportViewModel {
-    private let reporting: any ReportingQueries
+    let reporting: any ReportingQueries
     private let exerciseRepo: any ExerciseRepository
     let client: ClientDTO
 
     var exercisesWithData: [ExerciseDTO] = []
-    var selectedExerciseId: UUID?
-    var points: [ProgressPoint] = []
-    var personalBest: SetRecordDTO?
+    var errorMessage: String?
 
     init(reporting: any ReportingQueries, exerciseRepo: any ExerciseRepository, client: ClientDTO) {
         self.reporting = reporting
@@ -19,27 +17,15 @@ final class ClientReportViewModel {
         self.client = client
     }
 
-    var hasEnoughData: Bool {
-        points.filter { $0.topSetWeight != nil }.count >= ProgressPoint.minimumPoints
-    }
-
     func load() async {
-        let ids = Set((try? await reporting.exercisesWithData(clientId: client.id)) ?? [])
-        let all = (try? await exerciseRepo.all()) ?? []
-        exercisesWithData = all.filter { ids.contains($0.id) }
-        if selectedExerciseId == nil {
-            selectedExerciseId = exercisesWithData.first?.id
+        errorMessage = nil
+        do {
+            let ids = Set(try await reporting.exercisesWithData(clientId: client.id))
+            let all = try await exerciseRepo.all()
+            exercisesWithData = all.filter { ids.contains($0.id) }
+        } catch {
+            Log.ui.error("client report load failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't load progress."
         }
-        await loadChart()
-    }
-
-    func loadChart() async {
-        guard let exerciseId = selectedExerciseId else {
-            points = []
-            personalBest = nil
-            return
-        }
-        points = (try? await reporting.progression(clientId: client.id, exerciseId: exerciseId)) ?? []
-        personalBest = try? await reporting.personalBest(clientId: client.id, exerciseId: exerciseId)
     }
 }

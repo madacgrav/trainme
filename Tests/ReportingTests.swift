@@ -139,3 +139,30 @@ private func addSession(
     let pb = try await env.reporting.personalBest(clientId: env.clientId, exerciseId: env.exerciseId)
     #expect(pb == nil)
 }
+
+@Test func historyGroupsBySessionNewestFirst() async throws {
+    let env = try makeEnv()
+    try await addSession(env, start: daysAgo(10), sets: [(185, 5), (190, 3)], status: .completed)
+    try await addSession(env, start: daysAgo(3), sets: [(200, 5)], status: .completed)
+    try await addSession(env, start: daysAgo(1), sets: [(300, 1)], status: .cancelled)
+
+    let history = try await env.reporting.historyBySession(clientId: env.clientId, exerciseId: env.exerciseId)
+    #expect(history.count == 2)
+    #expect(history[0].sets.map(\.weight) == [200])
+    #expect(history[1].sets.map(\.weight) == [185, 190])
+    #expect(history[1].sets.map(\.setIndex) == [0, 1])
+}
+
+@Test func historyKeepsTwoSessionsOnOneDayDistinct() async throws {
+    let env = try makeEnv()
+    let morning = Calendar.current.date(bySettingHour: 7, minute: 0, second: 0, of: daysAgo(2))!
+    try await addSession(env, start: morning, sets: [(185, 5)], status: .completed)
+    try await addSession(env, start: morning.addingTimeInterval(8 * 3600), sets: [(195, 5)], status: .completed)
+
+    let history = try await env.reporting.historyBySession(clientId: env.clientId, exerciseId: env.exerciseId)
+    #expect(history.count == 2)
+    #expect(history.map { $0.sets.first?.weight } == [195, 185])
+
+    let points = try await env.reporting.progression(clientId: env.clientId, exerciseId: env.exerciseId)
+    #expect(points.count == 1) // progression still merges by day
+}

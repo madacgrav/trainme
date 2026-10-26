@@ -585,7 +585,7 @@ Make `reporting` on `ClientReportViewModel` `let` (not `private`) so the link ca
 
 ### Verification
 #### Automated
-- [ ] `xcodegen generate` picks up the two new files; test command passes (9 reporting tests).
+- [x] `xcodegen generate` picks up the two new files; test command passes (9 reporting tests).
 #### Manual
 - [ ] Device: Client → "View progress" lists exercises with data; tapping one shows PB, three charts, history rows like "Oct 20  185 lb × 5, 190 lb × 3", newest first.
 - [ ] Device: share button appears on the exercise screen when two or more days have data; the PDF opens in Files preview.

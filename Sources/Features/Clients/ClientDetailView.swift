@@ -41,7 +41,7 @@ struct ClientDetailView: View {
                 }
             }
             Section("Progress Reports") {
-                NavigationLink("View progress charts") {
+                NavigationLink("View progress") {
                     ClientReportView(viewModel: ClientReportViewModel(
                         reporting: viewModel.reporting,
                         exerciseRepo: viewModel.exerciseRepo,
