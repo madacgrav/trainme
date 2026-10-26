@@ -140,7 +140,7 @@ In "Project layout" add: `` `Sources/Support/` — shared helpers (logging, form
 - [x] After a simulator build: `find build -name PrivacyInfo.xcprivacy -path '*TrainMe.app*' | head -1` returns a path (or use the DerivedData path xcodebuild prints)
 - [x] `grep -c "Logger(" Sources/Support/Log.swift` → 5
 #### Manual
-- [ ] Push the branch and open a PR; the CI check appears and goes green
+- [x] Push the branch and open a PR; the CI check appears and goes green (PR #32, CI green, merged 2026-10-26)
 
 ---
 
@@ -526,10 +526,10 @@ memberwise order differs.
 - [x] `grep -n "rollback()" Sources/Services/Archive/DataArchive.swift` → 1 hit
 - [x] `grep -n "try? await archive" Sources/Features/Settings/SettingsView.swift` → none
 #### Manual
-- [ ] On device: export, then edit the export file to truncate it mid-array, import in
+- [x] On device: export, then edit the export file to truncate it mid-array, import in
   Replace mode → message "Import failed. Your previous data was restored." and all data
   still present.
-- [ ] Import a valid export in Replace mode → "Import complete."; `pre-import.json` absent
+- [x] Import a valid export in Replace mode → "Import complete."; `pre-import.json` absent
   afterwards (check via Xcode container download or trust the test).
 
 ---
@@ -705,10 +705,10 @@ import Testing
 - [x] Test command passes (2 new tests)
 - [x] `grep -n "try?" Sources/Services/NotificationService.swift Sources/Services/ReminderCoordinator.swift` → none
 #### Manual
-- [ ] Fresh install on device → system prompt appears; tap Don't Allow → Settings tab
+- [x] Fresh install on device → system prompt appears; tap Don't Allow → Settings tab
   Permissions shows "Denied" with "Open Settings"; tap it → system Settings opens; allow →
   return to app → row reads "Allowed".
-- [ ] With denied status, schedule a session for tomorrow; `Log` (Console.app, subsystem
+- [x] With denied status, schedule a session for tomorrow; `Log` (Console.app, subsystem
   `com.madacgrav.trainme`) shows "Skipping … session alerts".
 
 ---
@@ -965,9 +965,9 @@ protocol has the new requirement via `FakeCalendar().authorizationStatus()`. (Re
 - [x] `grep -n "newId != existing.eventIdentifier" Sources` → none
 - [x] `grep -n "try? await calendar\|try? await sessionRepo.setEventIdentifier" Sources/Features/Schedule/SessionEditView.swift` → none
 #### Manual
-- [ ] Device, calendar allowed: create session with calendar on → event appears; edit time → event moves; toggle off → event removed.
-- [ ] Device, calendar denied: create session with calendar on → session saved, alert "Saved, but calendar access is off…"; Settings Permissions shows Calendar "Denied".
-- [ ] Simulator with no calendars: iOS Settings → Calendar → Accounts: remove all; create session with calendar on → "no writable calendar" alert, session saved.
+- [x] Device, calendar allowed: create session with calendar on → event appears; edit time → event moves; toggle off → event removed.
+- [x] Device, calendar denied: create session with calendar on → session saved, alert "Saved, but calendar access is off…"; Settings Permissions shows Calendar "Denied".
+- [x] Simulator with no calendars: iOS Settings → Calendar → Accounts: remove all; create session with calendar on → "no writable calendar" alert, session saved.
 
 ---
 
@@ -1101,7 +1101,7 @@ the record test (see `Tests/RecordingTests.swift` for the arrangement).
 - [x] `grep -c "try?" Sources/Features/Session/SessionRunViewModel.swift` → 0
 - [x] `grep -rn "try?" Sources | grep -v "removeItem\|contentsOf\|VersionProbe\|JSONEncoder\|JSONDecoder\|Features/.*ViewModel.swift:.*all()\|search(" | wc -l` → small; review each remaining hit is a list load or file cleanup
 #### Manual
-- [ ] Smoke on device: log a set, delete a set, cancel a session, delete a session, edit notes. No regressions.
+- [x] Smoke on device: log a set, delete a set, cancel a session, delete a session, edit notes. No regressions.
 
 ---
 
@@ -1124,6 +1124,9 @@ On merge: `gh issue close 22 23 24 25 26 27 28 29 --comment "Closed by #NN"`.
 - [ ] `gh issue list --state open` no longer lists #22–#29 after merge
 
 ---
+
+## Verification log
+- 2026-10-26: Phases 2–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build; all passed.
 
 ## Deviations from structure.md
 1. **No `rollback()` on `DataArchiving`.** The rollback happens inside `importData`'s catch,
