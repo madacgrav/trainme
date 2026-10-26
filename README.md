@@ -3,6 +3,7 @@
 A local-only iOS app for an independent personal trainer: manage clients, build
 reusable workouts, schedule and record training sessions, and track each client's
 progress over time. See [PRD.md](PRD.md) for the full product requirements.
+Roadmap and known gaps: see [BACKLOG.md](BACKLOG.md).
 
 ## Building
 
