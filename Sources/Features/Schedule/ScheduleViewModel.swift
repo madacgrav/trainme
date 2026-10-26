@@ -14,6 +14,7 @@ final class ScheduleViewModel {
     var sessionsForDay: [SessionDTO] = []
     var clientNames: [UUID: String] = [:]
     var clientPhones: [UUID: String] = [:]
+    var clientInjuries: [UUID: String?] = [:]
 
     init(
         sessionRepo: any SessionRepository,
@@ -38,6 +39,7 @@ final class ScheduleViewModel {
         let clients = (try? await clientRepo.allIncludingArchived()) ?? []
         clientNames = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0.name) })
         clientPhones = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0.phoneE164) })
+        clientInjuries = Dictionary(uniqueKeysWithValues: clients.map { ($0.id, $0.injuries) })
 
         await reminders.refresh()
     }

@@ -21,6 +21,7 @@ struct ScheduleView: View {
                             session: session,
                             clientName: viewModel.clientNames[session.clientId] ?? "Client",
                             clientPhone: viewModel.clientPhones[session.clientId],
+                            clientInjuries: viewModel.clientInjuries[session.clientId] ?? nil,
                             onStatusChanged: { await viewModel.load() }
                         ))
                     } label: {

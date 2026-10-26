@@ -162,3 +162,13 @@ private func sessionDTO(clientId: UUID = UUID(), startAt: Date = .now) -> Sessio
     #expect(try await repos.sessions.get(id: dto.id) == nil)
     #expect(try await repos.sessions.setsFor(instanceId: instanceId).isEmpty)
 }
+
+@Test func updateNotesPersists() async throws {
+    let repos = try makeRepos()
+    let dto = sessionDTO()
+    try await repos.sessions.schedule(dto, attaching: [])
+    try await repos.sessions.updateNotes(id: dto.id, "Knee felt fine")
+    #expect(try await repos.sessions.get(id: dto.id)?.notes == "Knee felt fine")
+    try await repos.sessions.updateNotes(id: dto.id, nil)
+    #expect(try await repos.sessions.get(id: dto.id)?.notes == nil)
+}

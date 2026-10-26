@@ -541,8 +541,8 @@ and after the Time/Status section:
 
 ### Verification
 #### Automated
-- [ ] `TEST` passes (60)
-- [ ] `grep -n "injuries" Sources/Features/Session/SessionRunView.swift` ≥ 1 hit
+- [x] `TEST` passes (60)
+- [x] `grep -n "injuries" Sources/Features/Session/SessionRunView.swift` ≥ 1 hit (2)
 #### Manual
 - [ ] Client with injuries "Left knee" → open any of their sessions → orange banner at top
 - [ ] Type notes, tap Save notes, pop and re-open → notes persist; empty text clears them

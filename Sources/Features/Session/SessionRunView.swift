@@ -7,9 +7,28 @@ struct SessionRunView: View {
 
     var body: some View {
         List {
+            if let injuries = viewModel.clientInjuries, !injuries.isEmpty {
+                Section {
+                    Label(injuries, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.callout)
+                } header: {
+                    Text("Injuries / limitations")
+                }
+            }
+
             Section {
                 LabeledContent("Time", value: viewModel.session.startAt.formatted(date: .abbreviated, time: .shortened))
                 LabeledContent("Status", value: statusLabel)
+            }
+
+            Section("Notes") {
+                TextField("Session notes", text: $viewModel.notesDraft, axis: .vertical)
+                    .lineLimit(2...6)
+                    .onSubmit { Task { await viewModel.saveNotes() } }
+                if viewModel.notesDraft != (viewModel.session.notes ?? "") {
+                    Button("Save notes") { Task { await viewModel.saveNotes() } }
+                }
             }
 
             ForEach(viewModel.session.instances) { instance in

@@ -98,6 +98,7 @@ struct ClientDetailView: View {
                 session: session,
                 clientName: viewModel.client.name,
                 clientPhone: viewModel.client.phoneE164,
+                clientInjuries: viewModel.client.injuries,
                 onStatusChanged: { await viewModel.reload() }
             ))
         } label: {

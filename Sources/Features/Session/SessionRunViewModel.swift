@@ -13,6 +13,9 @@ final class SessionRunViewModel {
     var session: SessionDTO
     var clientName: String
     var clientPhone: String?
+    /// Surfaced at the top of the run screen so the trainer trains safely (PRD §4.4).
+    var clientInjuries: String?
+    var notesDraft: String
     var exercises: [UUID: ExerciseDTO] = [:]
     var recordedSets: [UUID: [SetRecordDTO]] = [:]  // keyed by instance id
 
@@ -23,6 +26,7 @@ final class SessionRunViewModel {
         session: SessionDTO,
         clientName: String,
         clientPhone: String? = nil,
+        clientInjuries: String? = nil,
         onStatusChanged: @escaping @MainActor () async -> Void = {}
     ) {
         self.sessionRepo = sessionRepo
@@ -31,6 +35,8 @@ final class SessionRunViewModel {
         self.session = session
         self.clientName = clientName
         self.clientPhone = clientPhone
+        self.clientInjuries = clientInjuries
+        self.notesDraft = session.notes ?? ""
         self.onStatusChanged = onStatusChanged
     }
 
@@ -42,6 +48,16 @@ final class SessionRunViewModel {
         }
         if let refreshed = try? await sessionRepo.get(id: session.id) {
             session = refreshed
+            notesDraft = session.notes ?? ""
+        }
+    }
+
+    func saveNotes() async {
+        let trimmed = notesDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? await sessionRepo.updateNotes(id: session.id, trimmed.isEmpty ? nil : trimmed)
+        if let refreshed = try? await sessionRepo.get(id: session.id) {
+            session = refreshed
+            notesDraft = session.notes ?? ""
         }
     }
 
