@@ -153,6 +153,8 @@ struct SessionEditView: View {
             }
             .task {
                 clients = (try? await clientRepo.all()) ?? []
+                // A solo user training themselves should not have to pick every time.
+                if selectedClientId == nil, clients.count == 1 { selectedClientId = clients[0].id }
                 if let workoutRepo {
                     workouts = (try? await workoutRepo.all()) ?? []
                 }

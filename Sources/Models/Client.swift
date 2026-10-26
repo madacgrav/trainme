@@ -11,6 +11,8 @@ final class Client {
     var injuries: String?
     var notes: String?
     var isArchived: Bool = false
+    /// The trainer's own profile when they use the app for themselves (v2).
+    var isSelf: Bool = false
     var createdAt: Date
     var updatedAt: Date
 
@@ -22,6 +24,7 @@ final class Client {
         injuries: String? = nil,
         notes: String? = nil,
         isArchived: Bool = false,
+        isSelf: Bool = false,
         createdAt: Date = .now,
         updatedAt: Date = .now
     ) {
@@ -32,6 +35,7 @@ final class Client {
         self.injuries = injuries
         self.notes = notes
         self.isArchived = isArchived
+        self.isSelf = isSelf
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

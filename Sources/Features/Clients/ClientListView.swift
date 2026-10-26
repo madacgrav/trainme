@@ -3,6 +3,9 @@ import SwiftUI
 struct ClientListView: View {
     @State var viewModel: ClientListViewModel
     @State private var showingAdd = false
+    @State private var showingSelf = false
+    /// Set by the first-run notice in RootView; consumed once to open the self sheet.
+    @AppStorage("wantsSelfClient") private var wantsSelfClient = false
 
     var body: some View {
         NavigationStack {
@@ -27,7 +30,10 @@ struct ClientListView: View {
                 } else if viewModel.clients.isEmpty {
                     EmptyState(
                         title: viewModel.query.isEmpty ? "No clients yet" : "No matches",
-                        systemImage: "person.2.fill"
+                        systemImage: "person.2.fill",
+                        action: viewModel.query.isEmpty && !viewModel.hasSelfClient
+                            ? ("Add yourself", { showingSelf = true })
+                            : nil
                     )
                 }
             }
@@ -42,11 +48,26 @@ struct ClientListView: View {
                     Task { await viewModel.load() }
                 }
             }
-            .task { await viewModel.load() }
+            .sheet(isPresented: $showingSelf) {
+                ClientEditView(repo: viewModel.repository, existing: nil, isSelf: true) {
+                    Task { await viewModel.load() }
+                }
+            }
+            .task {
+                await viewModel.load()
+                consumeSelfRequest()
+            }
+            .onChange(of: wantsSelfClient) { consumeSelfRequest() }
             .onChange(of: viewModel.query) {
                 Task { await viewModel.load() }
             }
         }
+    }
+
+    private func consumeSelfRequest() {
+        guard wantsSelfClient else { return }
+        wantsSelfClient = false
+        showingSelf = true
     }
 }
 

@@ -10,7 +10,9 @@ struct ClientDetailView: View {
             ErrorBanner(message: viewModel.errorMessage)
                 .themedRows()
             Section("Contact") {
-                LabeledContent("Phone", value: viewModel.client.phoneE164)
+                if !viewModel.client.isSelf {
+                    LabeledContent("Phone", value: viewModel.client.phoneE164)
+                }
                 if let goal = viewModel.client.goal {
                     LabeledContent("Goal", value: goal)
                 }
@@ -59,7 +61,7 @@ struct ClientDetailView: View {
             }
         }
         .themedScreen()
-        .navigationTitle(viewModel.client.name)
+        .navigationTitle(viewModel.client.isSelf ? "\(viewModel.client.name) (You)" : viewModel.client.name)
         .toolbar {
             Menu {
                 Button("Edit") { showingEdit = true }

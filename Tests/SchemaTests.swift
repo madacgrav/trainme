@@ -5,8 +5,10 @@ import Testing
 @Test func schemaV1ListsAllModels() {
     #expect(SchemaV1.models.count == 8)
     #expect(SchemaV1.versionString == "1.0.0")
-    #expect(TrainMeMigrationPlan.schemas.count == 1)
-    #expect(TrainMeMigrationPlan.stages.isEmpty)
+    #expect(SchemaV2.models.count == 8)
+    #expect(SchemaV2.versionString == "2.0.0")
+    #expect(TrainMeMigrationPlan.schemas.count == 2)
+    #expect(TrainMeMigrationPlan.stages.count == 1)
 }
 
 @Test func containerOpensThroughMigrationPlan() throws {

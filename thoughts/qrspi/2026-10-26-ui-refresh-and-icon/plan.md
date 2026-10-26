@@ -992,9 +992,9 @@ with `@AppStorage("wantsSelfClient") private var wantsSelfClient = false`; `Clie
 
 ### Verification
 #### Automated
-- [ ] Test command passes (115).
-- [ ] `grep -c '"isSelf"' Tests/Fixtures/export-v1.json` prints `0` and `git diff --quiet Tests/Fixtures/` succeeds.
-- [ ] `ArchiveRoundTripTests` still pass unchanged.
+- [x] Test command passes (115).
+- [x] `grep -c '"isSelf"' Tests/Fixtures/export-v1.json` prints `0` and `git diff --quiet Tests/Fixtures/` succeeds.
+- [x] `ArchiveRoundTripTests` still pass unchanged.
 
 #### Manual
 - [ ] Install Phase 3's build on the simulator, add a client, then install Phase 4's build over it: the app opens, the client is present, and `~/Library/Developer/CoreSimulator/…/Application Support/backups/pre-schema-2.0.0/` exists.

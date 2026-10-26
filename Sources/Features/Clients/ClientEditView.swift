@@ -5,22 +5,24 @@ struct ClientEditView: View {
     @State private var viewModel: ClientEditViewModel
     private let onSaved: () -> Void
 
-    init(repo: any ClientRepository, existing: ClientDTO?, onSaved: @escaping () -> Void) {
-        _viewModel = State(initialValue: ClientEditViewModel(repo: repo, existing: existing))
+    init(repo: any ClientRepository, existing: ClientDTO?, isSelf: Bool = false, onSaved: @escaping () -> Void) {
+        _viewModel = State(initialValue: ClientEditViewModel(repo: repo, existing: existing, isSelf: isSelf))
         self.onSaved = onSaved
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                Section("Contact") {
+                Section(viewModel.isSelf ? "Your profile" : "Contact") {
                     TextField("Name", text: $viewModel.name)
-                    TextField("Mobile phone", text: $viewModel.phoneRaw)
-                        .keyboardType(.phonePad)
-                    if !viewModel.phoneRaw.isEmpty && !viewModel.phoneValid {
-                        Text("Enter a valid phone number")
-                            .font(.caption)
-                            .foregroundStyle(Theme.Colors.danger)
+                    if !viewModel.isSelf {
+                        TextField("Mobile phone", text: $viewModel.phoneRaw)
+                            .keyboardType(.phonePad)
+                        if !viewModel.phoneRaw.isEmpty && !viewModel.phoneValid {
+                            Text("Enter a valid phone number")
+                                .font(.caption)
+                                .foregroundStyle(Theme.Colors.danger)
+                        }
                     }
                 }
                 Section("Training") {
@@ -33,7 +35,7 @@ struct ClientEditView: View {
                 }
                 ErrorBanner(message: viewModel.errorMessage)
             }
-            .navigationTitle(viewModel.isEditing ? "Edit Client" : "New Client")
+            .navigationTitle(viewModel.isSelf ? "About You" : (viewModel.isEditing ? "Edit Client" : "New Client"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -59,4 +61,9 @@ struct ClientEditView: View {
 #Preview("Edit client") {
     let repos = PreviewFixtures.repositories()
     ClientEditView(repo: repos.clients, existing: PreviewFixtures.client) {}
+}
+
+#Preview("About you") {
+    let repos = PreviewFixtures.repositories()
+    ClientEditView(repo: repos.clients, existing: nil, isSelf: true) {}
 }

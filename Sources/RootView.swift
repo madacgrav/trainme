@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeenBackupNotice") private var hasSeenBackupNotice = false
     @AppStorage("lastExportAt") private var lastExportAt: Double = 0
+    @AppStorage("wantsSelfClient") private var wantsSelfClient = false
     @State private var selectedTab = 0
     @State private var exportDue = false
     @State private var seedFailed = false
@@ -66,6 +67,11 @@ struct RootView: View {
         .tint(Theme.Colors.accent)
         .alert("Your data lives only on this iPhone", isPresented: backupNoticeBinding) {
             Button("Got it") { hasSeenBackupNotice = true }
+            Button("Add yourself as a client") {
+                hasSeenBackupNotice = true
+                selectedTab = 1
+                wantsSelfClient = true
+            }
         } message: {
             Text("There is no cloud backup in this version. Export your data regularly from Settings — an export file is the only way to recover from a lost or broken phone.")
         }
