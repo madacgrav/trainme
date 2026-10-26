@@ -57,6 +57,9 @@ struct SettingsView: View {
                     lastExportAt = Date.now.timeIntervalSince1970
                     statusMessage = "Export saved."
                 }
+                // The export file holds client PII: never leave it in tmp.
+                exportURL = nil
+                DataArchiveActor.removeExports()
             }
             .fileImporter(isPresented: $showingImporter, allowedContentTypes: [.json]) { result in
                 if case .success(let url) = result {

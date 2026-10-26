@@ -108,3 +108,57 @@ private func sessionDTO(clientId: UUID = UUID(), startAt: Date = .now) -> Sessio
     let upcoming = try await repos.sessions.upcoming(after: now, limit: 10)
     #expect(upcoming.map(\.id) == [s1.id, s3.id])
 }
+
+@Test func seriesHorizonCoversExactlyNWeeks() async throws {
+    let repos = try makeRepos()
+    let start = Calendar.current.date(from: DateComponents(year: 2026, month: 7, day: 14, hour: 7))! // Tuesday
+    let rule = AppRecurrence(frequency: .weekly, interval: 1, weekdays: [3], endDate: nil, occurrenceCount: nil)
+
+    let series = try await repos.sessions.scheduleSeries(sessionDTO(startAt: start), recurrence: rule, attaching: [], horizonWeeks: 2)
+
+    // "For 2 weeks" of Tuesdays is 2 sessions (14, 21), not 3.
+    #expect(series.occurrences.count == 2)
+    #expect(series.occurrences.first == start)
+    let stored = try await repos.sessions.sessions(from: start, to: start.addingTimeInterval(60 * 60 * 24 * 60))
+    #expect(stored.map(\.startAt) == series.occurrences)
+    #expect(stored.allSatisfy { $0.seriesId == series.seriesId })
+}
+
+@Test func seriesStartingOffRuleWeekdayAnchorsOnFirstRealOccurrence() async throws {
+    let repos = try makeRepos()
+    let calendar = Calendar.current
+    let start = calendar.date(from: DateComponents(year: 2026, month: 7, day: 15, hour: 7))! // Wednesday
+    let rule = AppRecurrence(frequency: .weekly, interval: 1, weekdays: [3, 5], endDate: nil, occurrenceCount: nil)
+
+    let series = try await repos.sessions.scheduleSeries(sessionDTO(startAt: start), recurrence: rule, attaching: [], horizonWeeks: 1)
+
+    // Thu 16 and Tue 21 only: the Wednesday anchor itself is not a session,
+    // and the calendar event must be built from these dates, not the anchor.
+    #expect(series.occurrences.count == 2)
+    #expect(series.occurrences.map { calendar.component(.weekday, from: $0) } == [5, 3])
+    #expect(series.occurrences.allSatisfy { $0 > start })
+}
+
+@Test func deletingSessionRemovesItsSetRecords() async throws {
+    let repos = try makeRepos()
+    let exerciseId = UUID()
+    let template = WorkoutDTO(
+        id: UUID(), name: "Legs",
+        entries: [WorkoutEntryDTO(id: UUID(), exerciseId: exerciseId, order: 0, targetSets: nil, targetReps: nil, targetWeight: nil, targetDuration: nil)],
+        createdAt: .now, updatedAt: .now
+    )
+    try await repos.workouts.upsert(template)
+    let dto = sessionDTO()
+    try await repos.sessions.schedule(dto, attaching: [template.id])
+    let instanceId = try await repos.sessions.get(id: dto.id)!.instances.first!.id
+    try await repos.sessions.recordSet(SetRecordDTO(
+        id: UUID(), workoutInstanceId: instanceId, exerciseId: exerciseId,
+        setIndex: 0, weight: 185, reps: 5, duration: nil, distance: nil,
+        rpe: nil, performedAt: .now, createdAt: .now, updatedAt: .now
+    ))
+
+    try await repos.sessions.delete(id: dto.id)
+
+    #expect(try await repos.sessions.get(id: dto.id) == nil)
+    #expect(try await repos.sessions.setsFor(instanceId: instanceId).isEmpty)
+}

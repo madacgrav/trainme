@@ -100,9 +100,19 @@ private struct PlannedEntryRow: View {
                     .foregroundStyle(.tint)
             }
             ForEach(sets) { set in
-                Text("Set \(set.setIndex + 1): \(setSummary(set))")
+                HStack {
+                    Text("Set \(set.setIndex + 1): \(setSummary(set))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Delete set", systemImage: "minus.circle", role: .destructive) {
+                        Task { await viewModel.deleteSet(set) }
+                    }
+                    .labelStyle(.iconOnly)
                     .font(.caption)
+                    .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
+                }
             }
         }
         .sheet(isPresented: $showingEntry) {

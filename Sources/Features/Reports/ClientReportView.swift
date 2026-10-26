@@ -65,6 +65,11 @@ struct ClientReportView: View {
                 renderPDF()
             }
         }
+        .onDisappear {
+            // Rendered reports hold client PII: sweep them once the screen is gone.
+            pdfURL = nil
+            ReportExporter.removeReports()
+        }
     }
 
     @State private var pdfURL: URL?

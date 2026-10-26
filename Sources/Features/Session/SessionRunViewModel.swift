@@ -6,6 +6,10 @@ import Observation
 final class SessionRunViewModel {
     let sessionRepo: any SessionRepository
     let exerciseRepo: any ExerciseRepository
+    private let calendar: any CalendarSyncing
+    /// Called after a status change so the presenting screen can refresh its
+    /// list and re-plan trainer alerts (a cancelled session must stop alerting).
+    private let onStatusChanged: @MainActor () async -> Void
     var session: SessionDTO
     var clientName: String
     var clientPhone: String?
@@ -15,15 +19,19 @@ final class SessionRunViewModel {
     init(
         sessionRepo: any SessionRepository,
         exerciseRepo: any ExerciseRepository,
+        calendar: any CalendarSyncing = EventKitCalendarService(),
         session: SessionDTO,
         clientName: String,
-        clientPhone: String? = nil
+        clientPhone: String? = nil,
+        onStatusChanged: @escaping @MainActor () async -> Void = {}
     ) {
         self.sessionRepo = sessionRepo
         self.exerciseRepo = exerciseRepo
+        self.calendar = calendar
         self.session = session
         self.clientName = clientName
         self.clientPhone = clientPhone
+        self.onStatusChanged = onStatusChanged
     }
 
     func load() async {
@@ -76,11 +84,12 @@ final class SessionRunViewModel {
         // Series occurrences share one recurring event, so only remove when
         // this session is not part of a series.
         if status == .cancelled, session.seriesId == nil, let eventId = session.eventIdentifier {
-            try? await EventKitCalendarService().remove(eventIdentifier: eventId)
+            try? await calendar.remove(eventIdentifier: eventId)
             try? await sessionRepo.setEventIdentifier(id: session.id, nil)
         }
         if let refreshed = try? await sessionRepo.get(id: session.id) {
             session = refreshed
         }
+        await onStatusChanged()
     }
 }

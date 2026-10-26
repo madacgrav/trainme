@@ -1,22 +1,34 @@
 import SwiftUI
 
+/// Creates a custom exercise, or edits an existing one (seeded or custom).
 struct ExerciseEditView: View {
     @Environment(\.dismiss) private var dismiss
     private let repo: any ExerciseRepository
+    private let existing: ExerciseDTO?
     private let onSaved: () -> Void
 
-    @State private var name = ""
-    @State private var category: ExerciseCategory = .strength
-    @State private var trackWeight = true
-    @State private var trackReps = true
-    @State private var trackSets = true
-    @State private var trackDuration = false
-    @State private var trackDistance = false
-    @State private var defaultUnit: Unit = .lb
+    @State private var name: String
+    @State private var category: ExerciseCategory
+    @State private var trackWeight: Bool
+    @State private var trackReps: Bool
+    @State private var trackSets: Bool
+    @State private var trackDuration: Bool
+    @State private var trackDistance: Bool
+    @State private var defaultUnit: Unit
 
-    init(repo: any ExerciseRepository, onSaved: @escaping () -> Void) {
+    init(repo: any ExerciseRepository, existing: ExerciseDTO? = nil, onSaved: @escaping () -> Void) {
         self.repo = repo
+        self.existing = existing
         self.onSaved = onSaved
+        let metrics = existing?.metrics ?? [.weight, .reps, .sets]
+        _name = State(initialValue: existing?.name ?? "")
+        _category = State(initialValue: existing?.category ?? .strength)
+        _trackWeight = State(initialValue: metrics.contains(.weight))
+        _trackReps = State(initialValue: metrics.contains(.reps))
+        _trackSets = State(initialValue: metrics.contains(.sets))
+        _trackDuration = State(initialValue: metrics.contains(.duration))
+        _trackDistance = State(initialValue: metrics.contains(.distance))
+        _defaultUnit = State(initialValue: existing?.defaultUnit ?? .lb)
     }
 
     private var metrics: MetricSet {
@@ -58,7 +70,7 @@ struct ExerciseEditView: View {
                     .pickerStyle(.segmented)
                 }
             }
-            .navigationTitle("New Exercise")
+            .navigationTitle(existing == nil ? "New Exercise" : "Edit Exercise")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -67,17 +79,7 @@ struct ExerciseEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            let dto = ExerciseDTO(
-                                id: UUID(),
-                                name: name.trimmingCharacters(in: .whitespaces),
-                                category: category,
-                                metrics: metrics,
-                                defaultUnit: defaultUnit,
-                                isCustom: true,
-                                createdAt: .now,
-                                updatedAt: .now
-                            )
-                            _ = try? await repo.create(dto)
+                            await save()
                             onSaved()
                             dismiss()
                         }
@@ -85,6 +87,24 @@ struct ExerciseEditView: View {
                     .disabled(!canSave)
                 }
             }
+        }
+    }
+
+    private func save() async {
+        let dto = ExerciseDTO(
+            id: existing?.id ?? UUID(),
+            name: name.trimmingCharacters(in: .whitespaces),
+            category: category,
+            metrics: metrics,
+            defaultUnit: defaultUnit,
+            isCustom: existing?.isCustom ?? true,
+            createdAt: existing?.createdAt ?? .now,
+            updatedAt: .now
+        )
+        if existing == nil {
+            _ = try? await repo.create(dto)
+        } else {
+            try? await repo.update(dto)
         }
     }
 }

@@ -19,8 +19,13 @@ enum ReportExporter {
         let renderer = ImageRenderer(content: content)
         renderer.proposedSize = .init(width: 612, height: 792) // US Letter @72dpi
 
-        let url = FileManager.default.temporaryDirectory
-            .appending(path: "\(clientName) — \(exerciseName) Progress.pdf")
+        // Reports hold client PII: keep them in their own tmp folder so the view
+        // can sweep them on disappear, and protect the file like the data store.
+        let fm = FileManager.default
+        removeReports()
+        try fm.createDirectory(at: reportsDirectory, withIntermediateDirectories: true)
+        let url = reportsDirectory
+            .appending(path: "\(sanitized(clientName)) — \(sanitized(exerciseName)) Progress.pdf")
 
         var renderError: Error?
         renderer.render { size, renderIn in
@@ -35,7 +40,23 @@ enum ReportExporter {
             context.closePDF()
         }
         if let renderError { throw renderError }
+        try fm.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
         return url
+    }
+
+    static let reportsDirectory = FileManager.default.temporaryDirectory
+        .appending(path: "Reports", directoryHint: .isDirectory)
+
+    /// Deletes every rendered report. Call when the report screen goes away.
+    static func removeReports() {
+        try? FileManager.default.removeItem(at: reportsDirectory)
+    }
+
+    /// Names come from user input; path separators and colons would otherwise
+    /// make CGContext fail to create the file.
+    private static func sanitized(_ name: String) -> String {
+        let cleaned = name.map { "/:".contains($0) ? "-" : $0 }
+        return String(cleaned).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
 

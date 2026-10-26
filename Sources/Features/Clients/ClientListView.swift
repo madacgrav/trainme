@@ -11,6 +11,7 @@ struct ClientListView: View {
                     ClientDetailView(viewModel: ClientDetailViewModel(
                         repo: viewModel.repository,
                         exerciseRepo: viewModel.exerciseRepo,
+                        sessionRepo: viewModel.sessionRepo,
                         reporting: viewModel.reporting,
                         client: client
                     ))

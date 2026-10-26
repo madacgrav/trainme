@@ -3,24 +3,30 @@ import SwiftUI
 struct ExerciseListView: View {
     @State var viewModel: ExerciseListViewModel
     @State private var showingAdd = false
+    @State private var editingExercise: ExerciseDTO?
 
     var body: some View {
         NavigationStack {
             List(viewModel.filtered) { exercise in
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text(exercise.name)
-                        Text(exercise.category.rawValue.capitalized)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    if exercise.isCustom {
-                        Text("Custom")
-                            .font(.caption2)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(.quaternary, in: Capsule())
+                Button {
+                    editingExercise = exercise
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(exercise.name)
+                                .foregroundStyle(.primary)
+                            Text(exercise.category.rawValue.capitalized)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        if exercise.isCustom {
+                            Text("Custom")
+                                .font(.caption2)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(.quaternary, in: Capsule())
+                        }
                     }
                 }
             }
@@ -47,6 +53,11 @@ struct ExerciseListView: View {
             }
             .sheet(isPresented: $showingAdd) {
                 ExerciseEditView(repo: viewModel.repository) {
+                    Task { await viewModel.load() }
+                }
+            }
+            .sheet(item: $editingExercise) { exercise in
+                ExerciseEditView(repo: viewModel.repository, existing: exercise) {
                     Task { await viewModel.load() }
                 }
             }

@@ -14,7 +14,9 @@ targets:
     sources: [Sources]
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.trainme.app
+        DEVELOPMENT_TEAM: ZD9JLCY7TF
+        CODE_SIGN_STYLE: Automatic
+        PRODUCT_BUNDLE_IDENTIFIER: com.madacgrav.trainme
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: Sources/Info.plist
   TrainMeTests:
