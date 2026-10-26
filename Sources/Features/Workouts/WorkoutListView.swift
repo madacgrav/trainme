@@ -9,6 +9,11 @@ struct WorkoutListView: View {
     var body: some View {
         NavigationStack {
             List {
+                if let errorMessage = viewModel.errorMessage {
+                    Section {
+                        Text(errorMessage).foregroundStyle(.red)
+                    }
+                }
                 ForEach(viewModel.workouts) { workout in
                     Button {
                         editingWorkout = workout

@@ -1,11 +1,17 @@
 import Foundation
 import Testing
+import UserNotifications
 @testable import TrainMe
 
 actor FakeNotifications: NotificationScheduling {
     private(set) var rescheduleCalls: [[UUID]] = []
+    private var status: UNAuthorizationStatus = .authorized
 
-    func requestAuthorization() async -> Bool { true }
+    func setStatus(_ newStatus: UNAuthorizationStatus) { status = newStatus }
+
+    func requestAuthorization() async -> Bool { status == .authorized }
+
+    func authorizationStatus() async -> UNAuthorizationStatus { status }
 
     func reschedule(upcoming: [(id: UUID, startAt: Date, clientName: String)]) async {
         rescheduleCalls.append(upcoming.map(\.id))
@@ -46,4 +52,21 @@ private func futureSession(clientId: UUID) -> SessionDTO {
     let calls = await fake.rescheduleCalls
     #expect(calls.count == 1)
     #expect(calls.first == [kept.id])
+}
+
+@MainActor
+@Test func refreshPublishesNotificationStatus() async throws {
+    let container = try PersistenceController.makeContainer(inMemory: true)
+    let fake = FakeNotifications()
+    await fake.setStatus(.denied)
+    let sut = ReminderCoordinator(
+        sessionRepo: SwiftDataSessionRepository(modelContainer: container),
+        clientRepo: SwiftDataClientRepository(modelContainer: container),
+        notifications: fake
+    )
+    #expect(sut.notificationStatus == .notDetermined)
+
+    await sut.refresh()
+
+    #expect(sut.notificationStatus == .denied)
 }

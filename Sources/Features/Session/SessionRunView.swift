@@ -10,9 +10,15 @@ struct SessionRunView: View {
     @State private var pendingStatus: SessionStatus?
     @State private var showingEdit = false
     @State private var confirmingDelete = false
+    @State private var calendarWarning: String?
 
     var body: some View {
         List {
+            if let errorMessage = viewModel.errorMessage {
+                Section {
+                    Text(errorMessage).foregroundStyle(.red)
+                }
+            }
             if let injuries = viewModel.clientInjuries, !injuries.isEmpty {
                 Section {
                     Label(injuries, systemImage: "exclamationmark.triangle.fill")
@@ -98,15 +104,25 @@ struct SessionRunView: View {
                 workoutRepo: workoutRepo,
                 existing: viewModel.session,
                 initialDate: viewModel.session.startAt
-            ) {
+            ) { warning in
+                calendarWarning = warning
                 Task { await viewModel.reloadAfterEdit() }
             }
+        }
+        .alert(
+            "Calendar",
+            isPresented: Binding(get: { calendarWarning != nil }, set: { if !$0 { calendarWarning = nil } })
+        ) {
+            Button("OK") { calendarWarning = nil }
+        } message: {
+            Text(calendarWarning ?? "")
         }
         .alert("Delete this session?", isPresented: $confirmingDelete) {
             Button("Delete", role: .destructive) {
                 Task {
-                    await viewModel.delete()
-                    dismiss()
+                    if await viewModel.delete() {
+                        dismiss()
+                    }
                 }
             }
             Button("Cancel", role: .cancel) {}

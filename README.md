@@ -1,5 +1,7 @@
 # TrainMe
 
+![CI](https://github.com/madacgrav/trainme/actions/workflows/ci.yml/badge.svg)
+
 A local-only iOS app for an independent personal trainer: manage clients, build
 reusable workouts, schedule and record training sessions, and track each client's
 progress over time. See [PRD.md](PRD.md) for the full product requirements.
@@ -41,11 +43,23 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 - Xcode 26+ with the iOS 26 simulator runtime
 - Deployment target: iOS 26
 
+## Permissions
+
+Notifications and calendar access are optional. Settings → Permissions shows the current
+status of each and offers an **Open Settings** link when one has been denied. Session
+reminders (24 h and 1 h before) are scheduled only while notifications are allowed;
+"Add to calendar" on a session needs full calendar access and falls back to the first
+writable calendar when no default is set.
+
+Continuous integration runs `xcodegen generate` and the simulator test suite on every
+pull request (`.github/workflows/ci.yml`).
+
 ## Project layout
 
 - `Sources/Models/` — SwiftData `@Model` types and their Codable DTOs
 - `Sources/Persistence/` — `@ModelActor` repositories, seed import, store backup
 - `Sources/Services/` — notifications, messaging, EventKit calendar, PDF reports, export/import archive, app lock
+- `Sources/Support/` — shared helpers (logging, formatters)
 - `Sources/Features/` — SwiftUI views + view models per feature (Schedule, Clients, Workouts, Exercises, Session, Reports, Settings)
 - `Sources/AppIcon.icon/` — Icon Composer package (edit `icon.json`/`Assets/*.svg` as text, or open in Icon Composer); `Sources/Assets.xcassets/` holds `AccentColor`
 - `Tests/` — Swift Testing suite (runs against in-memory containers); `Tests/Fixtures/export-v1.json` is the frozen export-format compatibility fixture — never regenerate it

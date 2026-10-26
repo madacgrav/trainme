@@ -28,7 +28,7 @@ private func makeStoreDir() throws -> URL {
 
     // Version change: backup created.
     try StoreBackup.backupIfVersionChanged(storeURL: storeURL, currentVersion: "1.1", defaults: defaults)
-    #expect(fm.fileExists(atPath: dir.appending(path: "Backups/pre-1.1/default.store").path))
+    #expect(fm.fileExists(atPath: dir.appending(path: "Backups/pre-schema-1.1/default.store").path))
 
     // Corrupt the store, then restore returns the backed-up bytes.
     try Data("corrupt".utf8).write(to: storeURL)
@@ -81,4 +81,47 @@ private func makeStoreDir() throws -> URL {
         try StoreBackup.backupIfVersionChanged(storeURL: storeURL, currentVersion: "1.1", defaults: defaults)
     }
     #expect(defaults.string(forKey: StoreBackup.versionKey) == "1.0")
+}
+
+@Test func legacyAppVersionKeyTriggersOneBackupThenMigratesKey() throws {
+    let fm = FileManager.default
+    let dir = try makeStoreDir()
+    defer { try? fm.removeItem(at: dir) }
+
+    let storeURL = dir.appending(path: "default.store")
+    try Data("old".utf8).write(to: storeURL)
+    let defaults = UserDefaults(suiteName: "StoreBackupTests-\(UUID().uuidString)")!
+    defaults.set("1.0", forKey: StoreBackup.legacyVersionKey)
+
+    // First launch of the versioned-schema build over an existing store: one backup.
+    try StoreBackup.backupIfVersionChanged(storeURL: storeURL, currentVersion: "1.0.0", defaults: defaults)
+    #expect(fm.fileExists(atPath: dir.appending(path: "Backups/pre-schema-1.0.0/default.store").path))
+    #expect(defaults.string(forKey: StoreBackup.legacyVersionKey) == nil)
+    #expect(defaults.string(forKey: StoreBackup.versionKey) == "1.0.0")
+
+    // Second launch on the same schema: no new backup directory.
+    try fm.removeItem(at: dir.appending(path: "Backups"))
+    try StoreBackup.backupIfVersionChanged(storeURL: storeURL, currentVersion: "1.0.0", defaults: defaults)
+    #expect(!fm.fileExists(atPath: dir.appending(path: "Backups").path))
+}
+
+@Test func failedLegacyBackupKeepsLegacyKeyForRetry() throws {
+    let fm = FileManager.default
+    let dir = try makeStoreDir()
+    defer { try? fm.removeItem(at: dir) }
+
+    let storeURL = dir.appending(path: "default.store")
+    try Data("old".utf8).write(to: storeURL)
+    let defaults = UserDefaults(suiteName: "StoreBackupTests-\(UUID().uuidString)")!
+    defaults.set("1.0", forKey: StoreBackup.legacyVersionKey)
+
+    try fm.setAttributes([.posixPermissions: 0o000], ofItemAtPath: storeURL.path)
+    defer { try? fm.setAttributes([.posixPermissions: 0o644], ofItemAtPath: storeURL.path) }
+
+    #expect(throws: (any Error).self) {
+        try StoreBackup.backupIfVersionChanged(storeURL: storeURL, currentVersion: "1.0.0", defaults: defaults)
+    }
+    // Neither key moved, so the next launch retries the one-time backup.
+    #expect(defaults.string(forKey: StoreBackup.legacyVersionKey) == "1.0")
+    #expect(defaults.string(forKey: StoreBackup.versionKey) == nil)
 }

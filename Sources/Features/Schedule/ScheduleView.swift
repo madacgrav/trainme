@@ -5,6 +5,7 @@ struct ScheduleView: View {
     /// Switches the root tab to Settings (used by the export reminder banner).
     var openSettings: () -> Void = {}
     @State private var showingNew = false
+    @State private var calendarWarning: String?
 
     var body: some View {
         NavigationStack {
@@ -69,9 +70,18 @@ struct ScheduleView: View {
                     clientRepo: viewModel.clientRepo,
                     workoutRepo: viewModel.workoutRepo,
                     initialDate: viewModel.selectedDate
-                ) {
+                ) { warning in
+                    calendarWarning = warning
                     Task { await viewModel.load() }
                 }
+            }
+            .alert(
+                "Calendar",
+                isPresented: Binding(get: { calendarWarning != nil }, set: { if !$0 { calendarWarning = nil } })
+            ) {
+                Button("OK") { calendarWarning = nil }
+            } message: {
+                Text(calendarWarning ?? "")
             }
             .task { await viewModel.load() }
             .onChange(of: viewModel.selectedDate) {

@@ -19,6 +19,8 @@ final class SessionRunViewModel {
     var notesDraft: String
     var exercises: [UUID: ExerciseDTO] = [:]
     var recordedSets: [UUID: [SetRecordDTO]] = [:]  // keyed by instance id
+    /// Set when a mutation fails; rendered at the top of the run screen.
+    var errorMessage: String?
 
     /// Series occurrences share one recurring calendar event and are created in
     /// bulk, so per-occurrence editing is not offered (see BACKLOG.md).
@@ -48,44 +50,62 @@ final class SessionRunViewModel {
     }
 
     func load() async {
-        let all = (try? await exerciseRepo.all()) ?? []
-        exercises = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+        do {
+            let all = try await exerciseRepo.all()
+            exercises = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+        } catch {
+            Log.ui.debug("exercise list load failed: \(error.localizedDescription)")
+        }
         for instance in session.instances {
-            recordedSets[instance.id] = (try? await sessionRepo.setsFor(instanceId: instance.id)) ?? []
+            recordedSets[instance.id] = await loadSets(instanceId: instance.id) ?? []
         }
-        if let refreshed = try? await sessionRepo.get(id: session.id) {
-            session = refreshed
-            notesDraft = session.notes ?? ""
-        }
+        await refreshSession()
     }
 
     /// Refreshes after the edit sheet saves and lets the presenter reload and
     /// re-plan trainer alerts.
     func reloadAfterEdit() async {
-        if let refreshed = try? await sessionRepo.get(id: session.id) {
-            session = refreshed
-            notesDraft = session.notes ?? ""
-        }
+        await refreshSession()
         await onStatusChanged()
     }
 
     /// Removes the session (the repository deletes its set records) and its
     /// calendar event, then lets the presenter reload and re-plan alerts.
-    func delete() async {
+    /// Returns false (with `errorMessage` set) when the store delete failed;
+    /// the presenter should not dismiss in that case.
+    func delete() async -> Bool {
+        errorMessage = nil
         if session.seriesId == nil, let eventId = session.eventIdentifier {
-            try? await calendar.remove(eventIdentifier: eventId)
+            do {
+                try await calendar.remove(eventIdentifier: eventId)
+            } catch {
+                // Non-blocking: a stale calendar entry is recoverable, a stuck session is not.
+                Log.calendar.error("remove on delete failed: \(error.localizedDescription)")
+            }
         }
-        try? await sessionRepo.delete(id: session.id)
+        do {
+            try await sessionRepo.delete(id: session.id)
+        } catch {
+            Log.ui.error("delete session failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't delete the session. Please try again."
+            return false
+        }
         await onStatusChanged()
+        return true
     }
 
     func saveNotes() async {
+        errorMessage = nil
         let trimmed = notesDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        try? await sessionRepo.updateNotes(id: session.id, trimmed.isEmpty ? nil : trimmed)
-        if let refreshed = try? await sessionRepo.get(id: session.id) {
-            session = refreshed
-            notesDraft = session.notes ?? ""
+        do {
+            try await sessionRepo.updateNotes(id: session.id, trimmed.isEmpty ? nil : trimmed)
+        } catch {
+            // Keep the draft so the trainer's typing is not lost.
+            Log.ui.error("updateNotes failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't save notes."
+            return
         }
+        await refreshSession()
     }
 
     func sets(instanceId: UUID, exerciseId: UUID) -> [SetRecordDTO] {
@@ -108,31 +128,88 @@ final class SessionRunViewModel {
             createdAt: .now,
             updatedAt: .now
         )
-        try? await sessionRepo.recordSet(dto)
-        recordedSets[instanceId] = (try? await sessionRepo.setsFor(instanceId: instanceId)) ?? []
+        errorMessage = nil
+        do {
+            try await sessionRepo.recordSet(dto)
+        } catch {
+            Log.ui.error("recordSet failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't log that set."
+            return
+        }
+        if let sets = await loadSets(instanceId: instanceId) {
+            recordedSets[instanceId] = sets
+        }
     }
 
     func deleteSet(_ record: SetRecordDTO) async {
-        try? await sessionRepo.deleteSet(id: record.id)
-        recordedSets[record.workoutInstanceId] = (try? await sessionRepo.setsFor(instanceId: record.workoutInstanceId)) ?? []
+        errorMessage = nil
+        do {
+            try await sessionRepo.deleteSet(id: record.id)
+        } catch {
+            Log.ui.error("deleteSet failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't delete that set."
+            return
+        }
+        if let sets = await loadSets(instanceId: record.workoutInstanceId) {
+            recordedSets[record.workoutInstanceId] = sets
+        }
     }
 
     func lastSet(exerciseId: UUID) async -> SetRecordDTO? {
-        try? await sessionRepo.lastSet(clientId: session.clientId, exerciseId: exerciseId)
+        do {
+            return try await sessionRepo.lastSet(clientId: session.clientId, exerciseId: exerciseId)
+        } catch {
+            Log.ui.debug("lastSet failed: \(error.localizedDescription)")
+            return nil
+        }
     }
 
     func setStatus(_ status: SessionStatus) async {
-        try? await sessionRepo.setStatus(id: session.id, status)
+        errorMessage = nil
+        do {
+            try await sessionRepo.setStatus(id: session.id, status)
+        } catch {
+            Log.ui.error("setStatus failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't update the session status."
+            return
+        }
         // Cancelled sessions leave the system calendar (one-way push cleanup).
         // Series occurrences share one recurring event, so only remove when
         // this session is not part of a series.
         if status == .cancelled, session.seriesId == nil, let eventId = session.eventIdentifier {
-            try? await calendar.remove(eventIdentifier: eventId)
-            try? await sessionRepo.setEventIdentifier(id: session.id, nil)
+            do {
+                try await calendar.remove(eventIdentifier: eventId)
+                try await sessionRepo.setEventIdentifier(id: session.id, nil)
+            } catch {
+                // Keep the identifier so a later cancel/delete can retry the removal.
+                Log.calendar.error("cancel cleanup failed: \(error.localizedDescription)")
+            }
         }
-        if let refreshed = try? await sessionRepo.get(id: session.id) {
-            session = refreshed
-        }
+        await refreshSession()
         await onStatusChanged()
+    }
+
+    // MARK: - Private
+
+    /// Re-reads the session; a read failure keeps the current value.
+    private func refreshSession() async {
+        do {
+            if let refreshed = try await sessionRepo.get(id: session.id) {
+                session = refreshed
+                notesDraft = session.notes ?? ""
+            }
+        } catch {
+            Log.ui.debug("session refresh failed: \(error.localizedDescription)")
+        }
+    }
+
+    /// nil on failure so callers can leave the displayed list untouched.
+    private func loadSets(instanceId: UUID) async -> [SetRecordDTO]? {
+        do {
+            return try await sessionRepo.setsFor(instanceId: instanceId)
+        } catch {
+            Log.ui.debug("setsFor failed: \(error.localizedDescription)")
+            return nil
+        }
     }
 }

@@ -14,6 +14,7 @@ final class ClientDetailViewModel {
     var upcomingSessions: [SessionDTO] = []
     /// Everything else (past or resolved), most recent first.
     var recentSessions: [SessionDTO] = []
+    var errorMessage: String?
 
     static let recentLimit = 10
 
@@ -34,10 +35,20 @@ final class ClientDetailViewModel {
     }
 
     func reload() async {
-        if let refreshed = try? await repository.allIncludingArchived().first(where: { $0.id == client.id }) {
-            client = refreshed
+        do {
+            if let refreshed = try await repository.allIncludingArchived().first(where: { $0.id == client.id }) {
+                client = refreshed
+            }
+        } catch {
+            Log.ui.debug("client refresh failed: \(error.localizedDescription)")
         }
-        let all = (try? await sessionRepo.forClient(client.id)) ?? []  // newest first
+        let all: [SessionDTO]  // newest first
+        do {
+            all = try await sessionRepo.forClient(client.id)
+        } catch {
+            Log.ui.debug("client sessions load failed: \(error.localizedDescription)")
+            all = []
+        }
         let now = Date.now
         let split = Self.splitSessions(all, now: now)
         upcomingSessions = split.upcoming
@@ -59,7 +70,13 @@ final class ClientDetailViewModel {
     }
 
     func toggleArchived() async {
-        try? await repository.setArchived(id: client.id, !client.isArchived)
+        errorMessage = nil
+        do {
+            try await repository.setArchived(id: client.id, !client.isArchived)
+        } catch {
+            Log.ui.error("setArchived failed: \(error.localizedDescription)")
+            errorMessage = "Couldn't update the client."
+        }
         await reload()
     }
 }
