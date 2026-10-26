@@ -18,6 +18,12 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>CFBundleDisplayName</key>
+	<string>TrainMe</string>
+	<key>UISupportedInterfaceOrientations</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+	</array>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>TrainMe adds your training sessions to your calendar and removes them when cancelled.</string>
 	<key>NSFaceIDUsageDescription</key>
