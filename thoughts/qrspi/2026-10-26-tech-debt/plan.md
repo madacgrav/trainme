@@ -283,9 +283,9 @@ import Testing
 
 ### Verification
 #### Automated
-- [ ] Test command passes (all existing + 3 new tests)
-- [ ] `grep -rn "lastRunAppVersion" Sources` → only the `legacyVersionKey` declaration
-- [ ] `grep -rn "try?" Sources/TrainMeApp.swift Sources/Persistence/PersistenceController.swift` → none
+- [x] Test command passes (all existing + 3 new tests)
+- [x] `grep -rn "lastRunAppVersion" Sources` → only the `legacyVersionKey` declaration
+- [x] `grep -rn "try?" Sources/TrainMeApp.swift Sources/Persistence/PersistenceController.swift` → none
 #### Manual
 - [ ] Export data from the current build on madphone (Settings → Export). Install this build
   over it (see memory note for device build command). Launch: data intact, Settings shows

@@ -2,18 +2,23 @@ import Foundation
 import SwiftData
 
 enum PersistenceController {
-    /// Extended each phase as new @Model types are added.
-    static let schemaTypes: [any PersistentModel.Type] = [
-        Client.self, Exercise.self, Workout.self, WorkoutEntry.self,
-        Session.self, WorkoutInstance.self, PlannedEntry.self, SetRecord.self,
-    ]
+    /// Kept for callers/tests that enumerate the model types.
+    static var schemaTypes: [any PersistentModel.Type] { SchemaV1.models }
 
     static func makeContainer(inMemory: Bool = false) throws -> ModelContainer {
         if !inMemory {
             // Application Support may not exist on first launch; the store lives there.
-            try? FileManager.default.createDirectory(at: .applicationSupportDirectory, withIntermediateDirectories: true)
+            do {
+                try FileManager.default.createDirectory(at: .applicationSupportDirectory, withIntermediateDirectories: true)
+            } catch {
+                Log.persistence.error("createDirectory failed: \(error.localizedDescription)")
+            }
         }
         let config = ModelConfiguration(isStoredInMemoryOnly: inMemory)
-        return try ModelContainer(for: Schema(schemaTypes), configurations: config)
+        return try ModelContainer(
+            for: Schema(versionedSchema: SchemaV1.self),
+            migrationPlan: TrainMeMigrationPlan.self,
+            configurations: config
+        )
     }
 }

@@ -13,14 +13,21 @@ final class AppBootstrap {
     private static let storeURL = URL.applicationSupportDirectory.appending(path: "default.store")
 
     init() {
-        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0"
-        try? StoreBackup.backupIfVersionChanged(storeURL: Self.storeURL, currentVersion: version)
+        do {
+            try StoreBackup.backupIfVersionChanged(storeURL: Self.storeURL, currentVersion: SchemaV1.versionString)
+        } catch {
+            Log.persistence.error("Pre-open backup failed: \(error.localizedDescription)")
+        }
         state = Self.attempt()
     }
 
     /// Restore the pre-migration backup and retry (see StoreBackup).
     func restoreBackupAndRetry() {
-        try? StoreBackup.restoreLatest(storeURL: Self.storeURL)
+        do {
+            try StoreBackup.restoreLatest(storeURL: Self.storeURL)
+        } catch {
+            Log.persistence.error("Backup restore failed: \(error.localizedDescription)")
+        }
         state = Self.attempt()
     }
 
@@ -29,7 +36,13 @@ final class AppBootstrap {
     func resetStoreAndRetry() {
         let fm = FileManager.default
         for suffix in ["", "-wal", "-shm"] {
-            try? fm.removeItem(at: URL(filePath: Self.storeURL.path + suffix))
+            let url = URL(filePath: Self.storeURL.path + suffix)
+            guard fm.fileExists(atPath: url.path) else { continue }
+            do {
+                try fm.removeItem(at: url)
+            } catch {
+                Log.persistence.error("Store reset could not remove \(url.lastPathComponent): \(error.localizedDescription)")
+            }
         }
         state = Self.attempt()
     }
@@ -38,6 +51,7 @@ final class AppBootstrap {
         do {
             return .ready(try PersistenceController.makeContainer())
         } catch {
+            Log.persistence.error("ModelContainer open failed: \(error.localizedDescription)")
             return .failed(error.localizedDescription)
         }
     }
