@@ -1065,10 +1065,10 @@ PR body summarises phases 1–8 and ends with `🤖 Generated with [Claude Code]
 
 ### Verification
 #### Automated
-- [ ] `gh issue list --label priority:P1 --state all | wc -l` = 10; `--label priority:P2` = 7; `--label tech-debt` = 8
-- [ ] `grep -c "github.com/madacgrav/trainme/issues/" BACKLOG.md` = 27
-- [ ] `grep -n "BACKLOG.md" README.md` ≥ 1
-- [ ] `TEST` passes (70); `git status` clean
+- [x] `gh issue list --label priority:P1 --state all | wc -l` = 10; `--label priority:P2` = 7; `--label tech-debt` = 8
+- [x] `grep -c "github.com/madacgrav/trainme/issues/" BACKLOG.md` = 27
+- [x] `grep -n "BACKLOG.md" README.md` ≥ 1
+- [x] `TEST` passes (70); `git status` clean
 #### Manual
 - [ ] Open `BACKLOG.md` on GitHub: every Issue link resolves; wontfix rows are closed
 - [ ] PR opened and CI (none yet) not required; PR description lists manual checks performed
