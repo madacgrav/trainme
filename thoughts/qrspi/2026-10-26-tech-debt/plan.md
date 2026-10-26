@@ -140,7 +140,7 @@ In "Project layout" add: `` `Sources/Support/` — shared helpers (logging, form
 - [x] After a simulator build: `find build -name PrivacyInfo.xcprivacy -path '*TrainMe.app*' | head -1` returns a path (or use the DerivedData path xcodebuild prints)
 - [x] `grep -c "Logger(" Sources/Support/Log.swift` → 5
 #### Manual
-- [ ] Push the branch and open a PR; the CI check appears and goes green
+- [x] Push the branch and open a PR; the CI check appears and goes green (PR #32, CI green, merged 2026-10-26)
 
 ---
 
