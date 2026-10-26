@@ -13,6 +13,7 @@ struct ClientListView: View {
                         exerciseRepo: viewModel.exerciseRepo,
                         sessionRepo: viewModel.sessionRepo,
                         reporting: viewModel.reporting,
+                        reminders: viewModel.reminders,
                         client: client
                     ))
                 } label: {

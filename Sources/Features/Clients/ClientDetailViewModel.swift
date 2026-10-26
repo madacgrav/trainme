@@ -8,6 +8,7 @@ final class ClientDetailViewModel {
     let exerciseRepo: any ExerciseRepository
     let sessionRepo: any SessionRepository
     let reporting: any ReportingQueries
+    let reminders: ReminderCoordinator
     var client: ClientDTO
     /// Scheduled sessions that have not started yet, soonest first.
     var upcomingSessions: [SessionDTO] = []
@@ -21,12 +22,14 @@ final class ClientDetailViewModel {
         exerciseRepo: any ExerciseRepository,
         sessionRepo: any SessionRepository,
         reporting: any ReportingQueries,
+        reminders: ReminderCoordinator,
         client: ClientDTO
     ) {
         self.repository = repo
         self.exerciseRepo = exerciseRepo
         self.sessionRepo = sessionRepo
         self.reporting = reporting
+        self.reminders = reminders
         self.client = client
     }
 
@@ -39,6 +42,8 @@ final class ClientDetailViewModel {
         let split = Self.splitSessions(all, now: now)
         upcomingSessions = split.upcoming
         recentSessions = split.recent
+        // Status changes made from this screen must re-plan trainer alerts too.
+        await reminders.refresh()
     }
 
     /// Pure split so the ordering rules are testable without a store.

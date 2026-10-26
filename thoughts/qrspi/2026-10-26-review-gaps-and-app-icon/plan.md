@@ -177,9 +177,9 @@ Render `AppIcon-1024.png` by compositing the three SVGs (e.g. `rsvg-convert` or 
 - [x] `BUILD` succeeds with zero warnings mentioning `AppIcon`
 - [x] `TEST` passes (57)
 #### Manual
-- [ ] Boot simulator, install app (`xcrun simctl install booted <path to TrainMe.app>`), press Home: icon shows gradient + white dumbbell + amber line; switch Appearance to Dark (`xcrun simctl ui booted appearance dark`) and re-check
-- [ ] Toolbar buttons / tinted controls render amber (accent) in the running app
-- [ ] App name under the icon reads "TrainMe"
+- [x] Boot simulator, install app (`xcrun simctl install booted <path to TrainMe.app>`), press Home: icon shows gradient + white dumbbell + amber line; switch Appearance to Dark (`xcrun simctl ui booted appearance dark`) and re-check
+- [x] Toolbar buttons / tinted controls render amber (accent) in the running app
+- [x] App name under the icon reads "TrainMe"
 
 ---
 
@@ -342,9 +342,9 @@ actor FakeNotifications: NotificationScheduling {
 
 ### Verification
 #### Automated
-- [ ] `grep -rn "removeAllPendingNotificationRequests" Sources` → no hits
-- [ ] `grep -rn "reschedule(upcoming" Sources` → only `NotificationService.swift` (protocol + impl) and `ReminderCoordinator.swift`
-- [ ] `TEST` passes (59)
+- [x] `grep -rn "removeAllPendingNotificationRequests" Sources` → no hits
+- [x] `grep -rn "reschedule(upcoming" Sources` → only `NotificationService.swift` (protocol + impl) and `ReminderCoordinator.swift`
+- [x] `TEST` passes (59)
 #### Manual
 - [ ] Create a session for tomorrow, open it from **Clients → detail**, tap Cancelled; background and foreground the app; in Xcode console add a temporary `print(await UNUserNotificationCenter.current().pendingNotificationRequests().map(\.identifier))` in `refresh()` (remove afterward) and confirm no `sess-<thatId>-…` remain
 

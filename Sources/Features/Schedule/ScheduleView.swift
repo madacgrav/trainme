@@ -2,6 +2,8 @@ import SwiftUI
 
 struct ScheduleView: View {
     @State var viewModel: ScheduleViewModel
+    /// Switches the root tab to Settings (used by the export reminder banner).
+    var openSettings: () -> Void = {}
     @State private var showingNew = false
 
     var body: some View {

@@ -48,6 +48,11 @@ func selectAlerts(
     return alerts
 }
 
+/// Identifiers this app owns. Pure so the filter is unit-testable.
+func sessionAlertIdentifiers(from pending: [String]) -> [String] {
+    pending.filter { $0.hasPrefix("sess-") }
+}
+
 protocol NotificationScheduling: Sendable {
     func requestAuthorization() async -> Bool
     /// Replaces all pending session alerts with the nearest-N set.
@@ -62,7 +67,9 @@ final class LocalNotificationService: NotificationScheduling {
 
     func reschedule(upcoming: [(id: UUID, startAt: Date, clientName: String)]) async {
         let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests()
+        // Only touch our own requests; never clobber anything else pending.
+        let pending = await center.pendingNotificationRequests().map(\.identifier)
+        center.removePendingNotificationRequests(withIdentifiers: sessionAlertIdentifiers(from: pending))
 
         for alert in selectAlerts(sessions: upcoming, now: .now) {
             let content = UNMutableNotificationContent()
