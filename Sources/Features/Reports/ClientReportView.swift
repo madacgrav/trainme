@@ -39,6 +39,19 @@ struct ClientReportView: View {
                         }
                     }
                 }
+                Section("Weekly volume") {
+                    VolumeChart(weeks: viewModel.weeklyVolumes)
+                }
+                Section("Sessions") {
+                    if viewModel.sessionVolumes.isEmpty {
+                        Text("No completed sessions in this window").foregroundStyle(.secondary)
+                    }
+                    ForEach(viewModel.sessionVolumes) { session in
+                        LabeledContent(session.start.formatted(date: .abbreviated, time: .omitted)) {
+                            Text(WeightFormatter.volumeString(session.totals))
+                        }
+                    }
+                }
                 Section("Exercises") {
                     ForEach(viewModel.exercisesWithData) { exercise in
                         NavigationLink(exercise.name) {
@@ -100,6 +113,43 @@ struct ExerciseProgressChart: View {
                 }
             }
             .chartYAxisLabel(unitLabel)
+            .frame(height: 220)
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+struct VolumeChart: View {
+    let weeks: [WeeklyVolume]
+
+    private struct Bar: Identifiable {
+        let id: String
+        let week: Date
+        let unit: String
+        let amount: Double
+    }
+
+    private var bars: [Bar] {
+        weeks.flatMap { week in
+            [Unit.lb, .kg].compactMap { unit in
+                guard let amount = week.totals.byUnit[unit], amount > 0 else { return nil }
+                return Bar(id: "\(week.id.timeIntervalSince1970)-\(unit.rawValue)", week: week.id,
+                           unit: WeightFormatter.label(unit), amount: amount)
+            }
+        }
+    }
+
+    var body: some View {
+        if weeks.count < ProgressPoint.minimumPoints {
+            ContentUnavailableView("Not enough data yet", systemImage: "chart.bar",
+                                   description: Text("Volume appears after two weeks of completed sessions."))
+            .frame(height: 180)
+        } else {
+            Chart(bars) { bar in
+                BarMark(x: .value("Week", bar.week, unit: .weekOfYear), y: .value("Volume", bar.amount))
+                    .foregroundStyle(by: .value("Unit", bar.unit))
+            }
+            .chartYAxisLabel("weight × reps")
             .frame(height: 220)
             .padding(.vertical, 4)
         }

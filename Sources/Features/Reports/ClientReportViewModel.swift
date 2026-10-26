@@ -12,6 +12,8 @@ final class ClientReportViewModel {
     var errorMessage: String?
     var window: ReportWindow = .twelveWeeks
     var consistency: ConsistencySummary?
+    var weeklyVolumes: [WeeklyVolume] = []
+    var sessionVolumes: [SessionVolume] = []
 
     init(reporting: any ReportingQueries, exerciseRepo: any ExerciseRepository, client: ClientDTO) {
         self.reporting = reporting
@@ -42,6 +44,9 @@ final class ClientReportViewModel {
 
     private func loadWindowed() async throws {
         let now = Date.now
-        consistency = try await reporting.consistency(clientId: client.id, from: window.start(from: now), to: now)
+        let from = window.start(from: now)
+        consistency = try await reporting.consistency(clientId: client.id, from: from, to: now)
+        sessionVolumes = try await reporting.sessionVolumes(clientId: client.id, from: from, to: now)
+        weeklyVolumes = try await reporting.weeklyVolumes(clientId: client.id, from: from, to: now)
     }
 }

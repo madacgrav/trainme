@@ -15,3 +15,9 @@ import Testing
     #expect(WeightFormatter.stepIncrement(for: .lb) == 5)
     #expect(WeightFormatter.stepIncrement(for: .kg) == 2.5)
 }
+
+@Test func volumeStringOmitsZeroUnits() {
+    #expect(WeightFormatter.volumeString(VolumeTotals(byUnit: [.lb: 12450])) == "12,450 lb")
+    #expect(WeightFormatter.volumeString(VolumeTotals(byUnit: [.lb: 0, .kg: 300])) == "300 kg")
+    #expect(WeightFormatter.volumeString(VolumeTotals()) == "—")
+}

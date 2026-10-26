@@ -16,6 +16,15 @@ enum WeightFormatter {
         }
     }
 
+    /// "12,450 lb · 300 kg"; units with no volume are omitted; "—" when nothing.
+    static func volumeString(_ totals: VolumeTotals) -> String {
+        let parts = [Unit.lb, .kg].compactMap { unit -> String? in
+            guard let amount = totals.byUnit[unit], amount > 0 else { return nil }
+            return string(amount, unit: unit)
+        }
+        return parts.isEmpty ? "—" : parts.joined(separator: " · ")
+    }
+
     static func stepIncrement(for unit: Unit) -> Double {
         unit == .kg ? 2.5 : 5
     }

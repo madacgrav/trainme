@@ -1056,7 +1056,7 @@ Tests:
 
 ### Verification
 #### Automated
-- [ ] Test command passes (15 reporting tests, 4 formatter tests).
+- [x] Test command passes (15 reporting tests, 4 formatter tests).
 #### Manual
 - [ ] Device: a client with lb and kg exercises shows two bar series in "Weekly volume" and session rows like "Oct 20  1,000 lb · 200 kg".
 - [ ] Device: a window with fewer than two weeks of sessions shows "Not enough data yet" under the chart heading while the session rows still list.

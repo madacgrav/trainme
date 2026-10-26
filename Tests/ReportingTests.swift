@@ -5,6 +5,7 @@ import Testing
 private struct Env {
     let sessions: SwiftDataSessionRepository
     let workouts: SwiftDataWorkoutRepository
+    let exercises: SwiftDataExerciseRepository
     let reporting: SwiftDataReportingQueries
     let clientId = UUID()
     let exerciseId = UUID()
@@ -15,6 +16,7 @@ private func makeEnv() throws -> Env {
     return Env(
         sessions: SwiftDataSessionRepository(modelContainer: container),
         workouts: SwiftDataWorkoutRepository(modelContainer: container),
+        exercises: SwiftDataExerciseRepository(modelContainer: container),
         reporting: SwiftDataReportingQueries(modelContainer: container)
     )
 }
@@ -54,6 +56,21 @@ private func addSession(
     }
     try await env.sessions.setStatus(id: dto.id, status)
     return dto.id
+}
+
+private func makeExercise(_ env: Env, name: String, unit: TrainMe.Unit) async throws -> UUID {
+    try await env.exercises.create(ExerciseDTO(
+        id: UUID(), name: name, category: .strength, metrics: [.weight, .reps, .sets],
+        defaultUnit: unit, isCustom: true, createdAt: .now, updatedAt: .now
+    )).id
+}
+
+/// A fixed Wednesday 07:00 `weeksAgo` weeks back, so week grouping never straddles a boundary.
+private func midWeek(weeksAgo: Int) -> Date {
+    let calendar = Calendar.current
+    let thisWeek = calendar.dateInterval(of: .weekOfYear, for: .now)!.start
+    let week = calendar.date(byAdding: .weekOfYear, value: -weeksAgo, to: thisWeek)!
+    return calendar.date(byAdding: DateComponents(day: 3, hour: 7), to: week)!
 }
 
 private func daysAgo(_ days: Int) -> Date {
@@ -202,4 +219,45 @@ private func addSession(
         clientId: env.clientId, from: ReportWindow.fourWeeks.start(from: .now), to: .now)
     #expect(fourWeeks == ConsistencySummary(completed: 1, cancelled: 0, noShow: 0, unresolved: 0))
     #expect(ReportWindow.all.start(from: .now) == nil)
+}
+
+@Test func sessionVolumeSumsWeightTimesReps() async throws {
+    let env = try makeEnv()
+    let squat = try await makeExercise(env, name: "Squat", unit: .lb)
+    let id = try await addSession(env, start: daysAgo(3), sets: [(185, 5), (185, 5), (nil, 10), (200, nil)],
+                                  status: .completed, exerciseId: squat)
+
+    let volumes = try await env.reporting.sessionVolumes(clientId: env.clientId, from: nil, to: .now)
+    #expect(volumes.map(\.id) == [id])
+    #expect(volumes[0].totals.byUnit == [.lb: 1850])
+}
+
+@Test func volumeKeepsUnitsSeparate() async throws {
+    let env = try makeEnv()
+    let squat = try await makeExercise(env, name: "Squat", unit: .lb)
+    let press = try await makeExercise(env, name: "Press", unit: .kg)
+    let start = daysAgo(2)
+    let session = try await addSession(env, start: start, sets: [(100, 10)], status: .completed, exerciseId: squat)
+    let instance = try await env.sessions.get(id: session)!.instances.first!.id
+    try await env.sessions.recordSet(SetRecordDTO(
+        id: UUID(), workoutInstanceId: instance, exerciseId: press, setIndex: 0, weight: 40, reps: 5,
+        duration: nil, distance: nil, rpe: nil, performedAt: start, createdAt: .now, updatedAt: .now))
+
+    let volumes = try await env.reporting.sessionVolumes(clientId: env.clientId, from: nil, to: .now)
+    #expect(volumes[0].totals.byUnit == [.lb: 1000, .kg: 200])
+    #expect(WeightFormatter.volumeString(volumes[0].totals) == "1,000 lb · 200 kg")
+}
+
+@Test func weeklyVolumeGroupsByCalendarWeek() async throws {
+    let env = try makeEnv()
+    let squat = try await makeExercise(env, name: "Squat", unit: .lb)
+    try await addSession(env, start: midWeek(weeksAgo: 2), sets: [(100, 10)], status: .completed, exerciseId: squat)
+    try await addSession(env, start: midWeek(weeksAgo: 1), sets: [(100, 10)], status: .completed, exerciseId: squat)
+    try await addSession(env, start: midWeek(weeksAgo: 1).addingTimeInterval(86_400), sets: [(100, 5)],
+                         status: .completed, exerciseId: squat)
+    try await addSession(env, start: midWeek(weeksAgo: 1), sets: [(500, 5)], status: .cancelled, exerciseId: squat)
+
+    let weeks = try await env.reporting.weeklyVolumes(clientId: env.clientId, from: nil, to: .now)
+    #expect(weeks.map { $0.totals.byUnit[.lb] } == [1000, 1500])
+    #expect(weeks[0].id < weeks[1].id)
 }
