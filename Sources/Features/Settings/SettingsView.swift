@@ -1,3 +1,4 @@
+import EventKit
 import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
@@ -6,7 +7,9 @@ import UserNotifications
 struct SettingsView: View {
     let archive: any DataArchiving
     let reminders: ReminderCoordinator
+    var calendar: any CalendarSyncing = EventKitCalendarService()
 
+    @State private var calendarStatus: EKAuthorizationStatus = .notDetermined
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("lastExportAt") private var lastExportAt: Double = 0
     @AppStorage("defaultWeightUnit") private var defaultWeightUnit: String = Unit.lb.rawValue
@@ -22,6 +25,16 @@ struct SettingsView: View {
         switch reminders.notificationStatus {
         case .authorized, .provisional, .ephemeral: "Allowed"
         case .denied: "Denied"
+        case .notDetermined: "Not asked yet"
+        @unknown default: "Unknown"
+        }
+    }
+
+    private var calendarStatusText: String {
+        switch calendarStatus {
+        case .fullAccess: "Allowed"
+        case .writeOnly: "Write only"
+        case .denied, .restricted: "Denied"
         case .notDetermined: "Not asked yet"
         @unknown default: "Unknown"
         }
@@ -76,10 +89,15 @@ struct SettingsView: View {
                         status: notificationStatusText,
                         isDenied: reminders.notificationStatus == .denied
                     )
+                    PermissionRow(
+                        title: "Calendar",
+                        status: calendarStatusText,
+                        isDenied: calendarStatus == .denied || calendarStatus == .restricted
+                    )
                 } header: {
                     Text("Permissions")
                 } footer: {
-                    Text("Session reminders fire 24 hours and 1 hour before each session.")
+                    Text("Session reminders fire 24 hours and 1 hour before each session. Calendar access is only needed when you add a session to your calendar.")
                 }
 
                 if let statusMessage {
@@ -89,11 +107,11 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-            .task { await reminders.refreshPermissionStatus() }
+            .task { await refreshPermissions() }
             .onChange(of: scenePhase) { _, phase in
                 // Coming back from the system Settings app must refresh the rows.
                 if phase == .active {
-                    Task { await reminders.refreshPermissionStatus() }
+                    Task { await refreshPermissions() }
                 }
             }
             .fileExporter(
@@ -142,6 +160,11 @@ struct SettingsView: View {
                 Text("All current clients, workouts, sessions and history will be deleted and replaced by the file's contents. This cannot be undone.")
             }
         }
+    }
+
+    private func refreshPermissions() async {
+        await reminders.refreshPermissionStatus()
+        calendarStatus = await calendar.authorizationStatus()
     }
 
     private func runImport(mode: ImportMode) async {

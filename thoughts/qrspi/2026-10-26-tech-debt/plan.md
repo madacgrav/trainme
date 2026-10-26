@@ -960,9 +960,9 @@ protocol has the new requirement via `FakeCalendar().authorizationStatus()`. (Re
 
 ### Verification
 #### Automated
-- [ ] Test command passes (8 resolution tests + 1 calendar test; existing delete test still green)
-- [ ] `grep -n "newId != existing.eventIdentifier" Sources` → none
-- [ ] `grep -n "try? await calendar\|try? await sessionRepo.setEventIdentifier" Sources/Features/Schedule/SessionEditView.swift` → none
+- [x] Test command passes (8 resolution tests + 1 calendar test; existing delete test still green)
+- [x] `grep -n "newId != existing.eventIdentifier" Sources` → none
+- [x] `grep -n "try? await calendar\|try? await sessionRepo.setEventIdentifier" Sources/Features/Schedule/SessionEditView.swift` → none
 #### Manual
 - [ ] Device, calendar allowed: create session with calendar on → event appears; edit time → event moves; toggle off → event removed.
 - [ ] Device, calendar denied: create session with calendar on → session saved, alert "Saved, but calendar access is off…"; Settings Permissions shows Calendar "Denied".

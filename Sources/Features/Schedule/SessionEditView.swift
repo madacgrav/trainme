@@ -3,7 +3,9 @@ import SwiftUI
 struct SessionEditView: View {
     @Environment(\.dismiss) private var dismiss
     private let sessionRepo: any SessionRepository
-    private let onSaved: () -> Void
+    /// Receives a calendar warning (nil when the calendar step succeeded or
+    /// was not requested). The session itself is always saved by then.
+    private let onSaved: (String?) -> Void
 
     @State private var clients: [ClientDTO] = []
     @State private var workouts: [WorkoutDTO] = []
@@ -18,6 +20,7 @@ struct SessionEditView: View {
     @State private var repeatWeeks = 8
     @State private var addToCalendar = false
     @State private var errorMessage: String?
+    @State private var calendarWarning: String?
 
     private let clientRepo: any ClientRepository
     /// Optional because editing never re-attaches workouts (instances are frozen).
@@ -32,7 +35,7 @@ struct SessionEditView: View {
         calendar: any CalendarSyncing = EventKitCalendarService(),
         existing: SessionDTO? = nil,
         initialDate: Date,
-        onSaved: @escaping () -> Void
+        onSaved: @escaping (String?) -> Void
     ) {
         self.sessionRepo = sessionRepo
         self.clientRepo = clientRepo
@@ -141,7 +144,7 @@ struct SessionEditView: View {
                     Button("Save") {
                         Task {
                             if await save() {
-                                onSaved()
+                                onSaved(calendarWarning)
                                 dismiss()
                             }
                         }
@@ -161,6 +164,7 @@ struct SessionEditView: View {
     private func save() async -> Bool {
         guard let clientId = selectedClientId else { return false }
         errorMessage = nil
+        calendarWarning = nil
         if let existing {
             return await saveEdit(of: existing, clientId: clientId)
         }
@@ -195,20 +199,28 @@ struct SessionEditView: View {
                 errorMessage = "Couldn't schedule the session. Please try again."
                 return false
             }
-            if addToCalendar, let firstStart = series.occurrences.first, await calendar.requestAccess() {
-                // Anchor the calendar event on the first real occurrence and cap
-                // it at the number of sessions actually created. EventKit always
-                // keeps the event's own start date even when its weekday is not
-                // in the rule, so anchoring on `dto.startAt` (e.g. a Wednesday
-                // for a Tue/Thu series) would add a phantom calendar entry.
-                var anchor = dto
-                anchor.startAt = firstStart
-                anchor.endAt = firstStart.addingTimeInterval(dto.endAt.timeIntervalSince(dto.startAt))
-                var boundedRule = rule
-                boundedRule.occurrenceCount = series.occurrences.count
-                if let eventId = try? await calendar.push(anchor, clientName: clientName, recurrence: boundedRule) {
-                    try? await sessionRepo.setEventIdentifierForSeries(series.seriesId, eventId)
+            if addToCalendar, let firstStart = series.occurrences.first {
+                let hasAccess = await calendar.requestAccess()
+                var result: Result<String?, any Error>?
+                if hasAccess {
+                    // Anchor the calendar event on the first real occurrence and cap
+                    // it at the number of sessions actually created. EventKit always
+                    // keeps the event's own start date even when its weekday is not
+                    // in the rule, so anchoring on `dto.startAt` (e.g. a Wednesday
+                    // for a Tue/Thu series) would add a phantom calendar entry.
+                    var anchor = dto
+                    anchor.startAt = firstStart
+                    anchor.endAt = firstStart.addingTimeInterval(dto.endAt.timeIntervalSince(dto.startAt))
+                    var boundedRule = rule
+                    boundedRule.occurrenceCount = series.occurrences.count
+                    result = await capturing {
+                        try await calendar.push(anchor, clientName: clientName, recurrence: boundedRule)
+                    }
                 }
+                await apply(
+                    resolveEventIdentifier(existing: nil, wantsCalendar: true, hasAccess: hasAccess, result: result),
+                    store: { try await sessionRepo.setEventIdentifierForSeries(series.seriesId, $0) }
+                )
             }
         } else {
             do {
@@ -218,9 +230,15 @@ struct SessionEditView: View {
                 return false
             }
             // Calendar failures never block saving; the session is already stored.
-            if addToCalendar, await calendar.requestAccess(),
-               let eventId = try? await calendar.push(dto, clientName: clientName, recurrence: nil) {
-                try? await sessionRepo.setEventIdentifier(id: dto.id, eventId)
+            if addToCalendar {
+                let hasAccess = await calendar.requestAccess()
+                let result: Result<String?, any Error>? = hasAccess
+                    ? await capturing { try await calendar.push(dto, clientName: clientName, recurrence: nil) }
+                    : nil
+                await apply(
+                    resolveEventIdentifier(existing: nil, wantsCalendar: true, hasAccess: hasAccess, result: result),
+                    store: { try await sessionRepo.setEventIdentifier(id: dto.id, $0) }
+                )
             }
         }
         return true
@@ -240,19 +258,50 @@ struct SessionEditView: View {
             return false
         }
         let clientName = clients.first { $0.id == clientId }?.name ?? "Client"
-        if addToCalendar, await calendar.requestAccess() {
-            let newId: String? = if let eventId = existing.eventIdentifier {
-                try? await calendar.update(eventIdentifier: eventId, updated, clientName: clientName)
-            } else {
-                try? await calendar.push(updated, clientName: clientName, recurrence: nil)
+        let hasAccess = addToCalendar ? await calendar.requestAccess() : false
+        let result: Result<String?, any Error>?
+        if addToCalendar, hasAccess {
+            result = await capturing {
+                if let eventId = existing.eventIdentifier {
+                    try await calendar.update(eventIdentifier: eventId, updated, clientName: clientName)
+                } else {
+                    try await calendar.push(updated, clientName: clientName, recurrence: nil)
+                }
             }
-            if newId != existing.eventIdentifier {
-                try? await sessionRepo.setEventIdentifier(id: updated.id, newId)
+        } else if !addToCalendar, let eventId = existing.eventIdentifier {
+            result = await capturing { () async throws -> String? in
+                try await calendar.remove(eventIdentifier: eventId)
+                return nil
             }
-        } else if let eventId = existing.eventIdentifier {
-            try? await calendar.remove(eventIdentifier: eventId)
-            try? await sessionRepo.setEventIdentifier(id: updated.id, nil)
+        } else {
+            result = nil
         }
+        await apply(
+            resolveEventIdentifier(
+                existing: existing.eventIdentifier, wantsCalendar: addToCalendar,
+                hasAccess: hasAccess, result: result
+            ),
+            store: { try await sessionRepo.setEventIdentifier(id: updated.id, $0) }
+        )
         return true
+    }
+
+    /// Persists a resolved calendar outcome. Store failures become a warning,
+    /// never a blocked save: the session row already exists.
+    private func apply(_ outcome: CalendarOutcome, store: (String?) async throws -> Void) async {
+        switch outcome {
+        case .unchanged:
+            break
+        case .store(let identifier):
+            do {
+                try await store(identifier)
+            } catch {
+                Log.calendar.error("setEventIdentifier failed: \(error.localizedDescription)")
+                calendarWarning = "Saved, but the calendar link couldn't be recorded."
+            }
+        case .failed(let message):
+            Log.calendar.error("Calendar step failed: \(message)")
+            calendarWarning = message
+        }
     }
 }

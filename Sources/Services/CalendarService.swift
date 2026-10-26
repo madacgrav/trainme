@@ -31,8 +31,14 @@ func makeEKRecurrenceRule(_ rule: AppRecurrence) -> EKRecurrenceRule {
     )
 }
 
+enum CalendarError: Error, Equatable {
+    /// No default calendar and no calendar that allows modifications.
+    case noWritableCalendar
+}
+
 protocol CalendarSyncing: Sendable {
     func requestAccess() async -> Bool
+    func authorizationStatus() async -> EKAuthorizationStatus
     /// One-way push to the default calendar. Returns the eventIdentifier to
     /// store for later update/removal.
     func push(_ session: SessionDTO, clientName: String, recurrence: AppRecurrence?) async throws -> String?
@@ -47,7 +53,27 @@ actor EventKitCalendarService: CalendarSyncing {
     private let store = EKEventStore()
 
     func requestAccess() async -> Bool {
-        (try? await store.requestFullAccessToEvents()) ?? false
+        do {
+            return try await store.requestFullAccessToEvents()
+        } catch {
+            Log.calendar.error("requestFullAccessToEvents failed: \(error.localizedDescription)")
+            return false
+        }
+    }
+
+    func authorizationStatus() async -> EKAuthorizationStatus {
+        EKEventStore.authorizationStatus(for: .event)
+    }
+
+    /// The default calendar when the user has one, otherwise the first calendar
+    /// that accepts new events. Throws when neither exists.
+    private func writableCalendar() throws -> EKCalendar {
+        if let preferred = store.defaultCalendarForNewEvents { return preferred }
+        if let fallback = store.calendars(for: .event).first(where: { $0.allowsContentModifications }) {
+            Log.calendar.info("No default calendar; using \(fallback.title)")
+            return fallback
+        }
+        throw CalendarError.noWritableCalendar
     }
 
     func push(_ session: SessionDTO, clientName: String, recurrence: AppRecurrence?) async throws -> String? {
@@ -57,7 +83,7 @@ actor EventKitCalendarService: CalendarSyncing {
         event.startDate = session.startAt
         event.endDate = session.endAt
         event.notes = session.notes
-        event.calendar = store.defaultCalendarForNewEvents
+        event.calendar = try writableCalendar()
         if let recurrence {
             event.recurrenceRules = [makeEKRecurrenceRule(recurrence)]
         }
