@@ -2,11 +2,37 @@ import SwiftUI
 
 struct ScheduleView: View {
     @State var viewModel: ScheduleViewModel
+    /// Switches the root tab to Settings (used by the export reminder banner).
+    var openSettings: () -> Void = {}
     @State private var showingNew = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                if viewModel.isExportReminderDue {
+                    HStack(spacing: 12) {
+                        Image(systemName: "externaldrive.badge.exclamationmark")
+                            .foregroundStyle(.orange)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Back up your data").font(.subheadline.bold())
+                            Text("Export is the only backup on this phone.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Export") { openSettings() }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        Button("Dismiss", systemImage: "xmark") { viewModel.dismissExportReminder() }
+                            .labelStyle(.iconOnly)
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                    .background(.orange.opacity(0.12))
+                }
+
                 DatePicker("Date", selection: $viewModel.selectedDate, displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .padding(.horizontal)
@@ -16,11 +42,13 @@ struct ScheduleView: View {
                         SessionRunView(viewModel: SessionRunViewModel(
                             sessionRepo: viewModel.sessionRepo,
                             exerciseRepo: viewModel.exerciseRepo,
+                            clientRepo: viewModel.clientRepo,
                             session: session,
                             clientName: viewModel.clientNames[session.clientId] ?? "Client",
                             clientPhone: viewModel.clientPhones[session.clientId],
+                            clientInjuries: viewModel.clientInjuries[session.clientId] ?? nil,
                             onStatusChanged: { await viewModel.load() }
-                        ))
+                        ), workoutRepo: viewModel.workoutRepo)
                     } label: {
                         SessionRow(session: session, clientName: viewModel.clientNames[session.clientId] ?? "Client")
                     }

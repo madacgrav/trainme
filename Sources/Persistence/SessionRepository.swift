@@ -22,10 +22,16 @@ protocol SessionRepository: Sendable {
     func upcoming(after: Date, limit: Int) async throws -> [SessionDTO]
     func forClient(_ clientId: UUID) async throws -> [SessionDTO]
     func setStatus(id: UUID, _ status: SessionStatus) async throws
+    /// Updates client, time window and notes. Instances are frozen copies and
+    /// are never touched here (PRD §4.2).
+    func update(_ dto: SessionDTO) async throws
     func setEventIdentifier(id: UUID, _ eventIdentifier: String?) async throws
     func setEventIdentifierForSeries(_ seriesId: UUID, _ eventIdentifier: String?) async throws
     func updateNotes(id: UUID, _ notes: String?) async throws
     func delete(id: UUID) async throws
+    /// Sessions marked completed after `since` (all of them when nil). Drives
+    /// the export-staleness reminder.
+    func completedCount(since: Date?) async throws -> Int
 
     // Recording (Phase 5)
     func recordSet(_ dto: SetRecordDTO) async throws
@@ -181,6 +187,16 @@ actor SwiftDataSessionRepository: SessionRepository {
         try modelContext.save()
     }
 
+    func update(_ dto: SessionDTO) async throws {
+        guard let session = try fetch(id: dto.id) else { return }
+        session.clientId = dto.clientId
+        session.startAt = dto.startAt
+        session.endAt = dto.endAt
+        session.notes = dto.notes
+        session.updatedAt = .now
+        try modelContext.save()
+    }
+
     func setEventIdentifier(id: UUID, _ eventIdentifier: String?) async throws {
         guard let session = try fetch(id: id) else { return }
         session.eventIdentifier = eventIdentifier
@@ -219,6 +235,14 @@ actor SwiftDataSessionRepository: SessionRepository {
         }
         modelContext.delete(session)
         try modelContext.save()
+    }
+
+    func completedCount(since: Date?) async throws -> Int {
+        let completedRaw = SessionStatus.completed.rawValue
+        let floor = since ?? .distantPast
+        return try modelContext.fetchCount(FetchDescriptor<Session>(
+            predicate: #Predicate { $0.statusRaw == completedRaw && $0.updatedAt > floor }
+        ))
     }
 
     // MARK: - Recording

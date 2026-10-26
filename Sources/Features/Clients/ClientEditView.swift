@@ -31,6 +31,9 @@ struct ClientEditView: View {
                     TextField("Notes", text: $viewModel.notes, axis: .vertical)
                         .lineLimit(3...8)
                 }
+                if let error = viewModel.errorMessage {
+                    Section { Text(error).foregroundStyle(.red) }
+                }
             }
             .navigationTitle(viewModel.isEditing ? "Edit Client" : "New Client")
             .navigationBarTitleDisplayMode(.inline)

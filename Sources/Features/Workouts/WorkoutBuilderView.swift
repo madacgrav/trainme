@@ -33,7 +33,7 @@ struct WorkoutBuilderView: View {
                             VStack(alignment: .leading) {
                                 Text(viewModel.exerciseNames[entry.exerciseId] ?? "Exercise")
                                     .foregroundStyle(.primary)
-                                Text(targetSummary(entry))
+                                Text(targetSummary(entry, unit: viewModel.exerciseUnits[entry.exerciseId] ?? .lb))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -43,6 +43,9 @@ struct WorkoutBuilderView: View {
                     .onDelete { viewModel.remove(at: $0) }
 
                     Button("Add exercise", systemImage: "plus") { showingPicker = true }
+                }
+                if let error = viewModel.errorMessage {
+                    Section { Text(error).foregroundStyle(.red) }
                 }
             }
             .navigationTitle(viewModel.isEditing ? "Edit Workout" : "New Workout")
@@ -72,14 +75,17 @@ struct WorkoutBuilderView: View {
                 get: { editingEntryIndex.map { EntryIndex(value: $0) } },
                 set: { editingEntryIndex = $0?.value }
             )) { wrapper in
-                EntryTargetEditView(entry: $viewModel.entries[wrapper.value])
-                    .presentationDetents([.medium])
+                EntryTargetEditView(
+                    entry: $viewModel.entries[wrapper.value],
+                    unit: viewModel.exerciseUnits[viewModel.entries[wrapper.value].exerciseId] ?? .lb
+                )
+                .presentationDetents([.medium])
             }
             .task { await viewModel.loadExerciseNames() }
         }
     }
 
-    private func targetSummary(_ entry: WorkoutEntryDTO) -> String {
+    private func targetSummary(_ entry: WorkoutEntryDTO, unit: Unit) -> String {
         var parts: [String] = []
         if let sets = entry.targetSets, let reps = entry.targetReps {
             parts.append("\(sets)×\(reps)")
@@ -89,7 +95,7 @@ struct WorkoutBuilderView: View {
             parts.append("\(reps) reps")
         }
         if let weight = entry.targetWeight {
-            parts.append("@ \(weight.formatted()) lb")
+            parts.append("@ \(WeightFormatter.string(weight, unit: unit))")
         }
         if let duration = entry.targetDuration {
             parts.append("\(duration)s")
@@ -145,6 +151,7 @@ struct ExercisePickerView: View {
 struct EntryTargetEditView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var entry: WorkoutEntryDTO
+    let unit: Unit
 
     var body: some View {
         NavigationStack {
@@ -153,7 +160,7 @@ struct EntryTargetEditView: View {
                     OptionalStepper(label: "Sets", value: $entry.targetSets, range: 1...20, defaultValue: 3)
                     OptionalStepper(label: "Reps", value: $entry.targetReps, range: 1...100, defaultValue: 10)
                     HStack {
-                        Text("Weight (lb)")
+                        Text("Weight (\(WeightFormatter.label(unit)))")
                         Spacer()
                         TextField("—", value: $entry.targetWeight, format: .number)
                             .keyboardType(.decimalPad)

@@ -17,16 +17,20 @@ struct SessionEditView: View {
     @State private var repeatWeekdays: Set<Int> = []
     @State private var repeatWeeks = 8
     @State private var addToCalendar = false
+    @State private var errorMessage: String?
 
     private let clientRepo: any ClientRepository
-    private let workoutRepo: any WorkoutRepository
+    /// Optional because editing never re-attaches workouts (instances are frozen).
+    private let workoutRepo: (any WorkoutRepository)?
     private let calendar: any CalendarSyncing
+    private let existing: SessionDTO?
 
     init(
         sessionRepo: any SessionRepository,
         clientRepo: any ClientRepository,
-        workoutRepo: any WorkoutRepository,
+        workoutRepo: (any WorkoutRepository)? = nil,
         calendar: any CalendarSyncing = EventKitCalendarService(),
+        existing: SessionDTO? = nil,
         initialDate: Date,
         onSaved: @escaping () -> Void
     ) {
@@ -34,11 +38,22 @@ struct SessionEditView: View {
         self.clientRepo = clientRepo
         self.workoutRepo = workoutRepo
         self.calendar = calendar
+        self.existing = existing
         self.onSaved = onSaved
-        let calendar = Calendar.current
-        let base = calendar.startOfDay(for: initialDate)
-        _startAt = State(initialValue: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: base) ?? initialDate)
+        if let existing {
+            _selectedClientId = State(initialValue: existing.clientId)
+            _startAt = State(initialValue: existing.startAt)
+            _durationMinutes = State(initialValue: max(15, Int(existing.endAt.timeIntervalSince(existing.startAt) / 60)))
+            _notes = State(initialValue: existing.notes ?? "")
+            _addToCalendar = State(initialValue: existing.eventIdentifier != nil)
+        } else {
+            let calendar = Calendar.current
+            let base = calendar.startOfDay(for: initialDate)
+            _startAt = State(initialValue: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: base) ?? initialDate)
+        }
     }
+
+    private var isEditing: Bool { existing != nil }
 
     private var canSave: Bool { selectedClientId != nil }
 
@@ -59,6 +74,7 @@ struct SessionEditView: View {
                     DatePicker("Starts", selection: $startAt)
                     Stepper("Duration: \(durationMinutes) min", value: $durationMinutes, in: 15...240, step: 15)
                 }
+                if !isEditing {
                 Section("Workouts") {
                     if workouts.isEmpty {
                         Text("No workout templates yet").foregroundStyle(.secondary)
@@ -102,16 +118,20 @@ struct SessionEditView: View {
                         Stepper("For \(repeatWeeks) weeks", value: $repeatWeeks, in: 1...26)
                     }
                 }
+                }
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
                 }
+                if let errorMessage {
+                    Section { Text(errorMessage).foregroundStyle(.red) }
+                }
                 Section {
-                    Toggle("Add to iPhone calendar", isOn: $addToCalendar)
+                    Toggle(isEditing ? "Keep in iPhone calendar" : "Add to iPhone calendar", isOn: $addToCalendar)
                 } footer: {
                     Text("Pushes the session to your default calendar (syncs to Google Calendar if that's your default account).")
                 }
             }
-            .navigationTitle("New Session")
+            .navigationTitle(isEditing ? "Edit Session" : "New Session")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -120,9 +140,10 @@ struct SessionEditView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
                         Task {
-                            await save()
-                            onSaved()
-                            dismiss()
+                            if await save() {
+                                onSaved()
+                                dismiss()
+                            }
                         }
                     }
                     .disabled(!canSave)
@@ -130,13 +151,19 @@ struct SessionEditView: View {
             }
             .task {
                 clients = (try? await clientRepo.all()) ?? []
-                workouts = (try? await workoutRepo.all()) ?? []
+                if let workoutRepo {
+                    workouts = (try? await workoutRepo.all()) ?? []
+                }
             }
         }
     }
 
-    private func save() async {
-        guard let clientId = selectedClientId else { return }
+    private func save() async -> Bool {
+        guard let clientId = selectedClientId else { return false }
+        errorMessage = nil
+        if let existing {
+            return await saveEdit(of: existing, clientId: clientId)
+        }
         let dto = SessionDTO(
             id: UUID(),
             clientId: clientId,
@@ -161,8 +188,14 @@ struct SessionEditView: View {
                 endDate: nil,
                 occurrenceCount: nil
             )
-            let series = try? await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
-            if addToCalendar, let series, let firstStart = series.occurrences.first, await calendar.requestAccess() {
+            let series: ScheduledSeries
+            do {
+                series = try await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
+            } catch {
+                errorMessage = "Couldn't schedule the session. Please try again."
+                return false
+            }
+            if addToCalendar, let firstStart = series.occurrences.first, await calendar.requestAccess() {
                 // Anchor the calendar event on the first real occurrence and cap
                 // it at the number of sessions actually created. EventKit always
                 // keeps the event's own start date even when its weekday is not
@@ -178,11 +211,48 @@ struct SessionEditView: View {
                 }
             }
         } else {
-            try? await sessionRepo.schedule(dto, attaching: workoutIds)
+            do {
+                try await sessionRepo.schedule(dto, attaching: workoutIds)
+            } catch {
+                errorMessage = "Couldn't schedule the session. Please try again."
+                return false
+            }
+            // Calendar failures never block saving; the session is already stored.
             if addToCalendar, await calendar.requestAccess(),
                let eventId = try? await calendar.push(dto, clientName: clientName, recurrence: nil) {
                 try? await sessionRepo.setEventIdentifier(id: dto.id, eventId)
             }
         }
+        return true
+    }
+
+    /// Edit path: time window, client and notes change; instances stay frozen.
+    private func saveEdit(of existing: SessionDTO, clientId: UUID) async -> Bool {
+        var updated = existing
+        updated.clientId = clientId
+        updated.startAt = startAt
+        updated.endAt = startAt.addingTimeInterval(TimeInterval(durationMinutes * 60))
+        updated.notes = notes.isEmpty ? nil : notes
+        do {
+            try await sessionRepo.update(updated)
+        } catch {
+            errorMessage = "Couldn't save the session. Please try again."
+            return false
+        }
+        let clientName = clients.first { $0.id == clientId }?.name ?? "Client"
+        if addToCalendar, await calendar.requestAccess() {
+            let newId: String? = if let eventId = existing.eventIdentifier {
+                try? await calendar.update(eventIdentifier: eventId, updated, clientName: clientName)
+            } else {
+                try? await calendar.push(updated, clientName: clientName, recurrence: nil)
+            }
+            if newId != existing.eventIdentifier {
+                try? await sessionRepo.setEventIdentifier(id: updated.id, newId)
+            }
+        } else if let eventId = existing.eventIdentifier {
+            try? await calendar.remove(eventIdentifier: eventId)
+            try? await sessionRepo.setEventIdentifier(id: updated.id, nil)
+        }
+        return true
     }
 }

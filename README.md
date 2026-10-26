@@ -3,6 +3,7 @@
 A local-only iOS app for an independent personal trainer: manage clients, build
 reusable workouts, schedule and record training sessions, and track each client's
 progress over time. See [PRD.md](PRD.md) for the full product requirements.
+Roadmap and known gaps: see [BACKLOG.md](BACKLOG.md).
 
 ## Building
 
@@ -46,5 +47,6 @@ sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 - `Sources/Persistence/` — `@ModelActor` repositories, seed import, store backup
 - `Sources/Services/` — notifications, messaging, EventKit calendar, PDF reports, export/import archive, app lock
 - `Sources/Features/` — SwiftUI views + view models per feature (Schedule, Clients, Workouts, Exercises, Session, Reports, Settings)
+- `Sources/AppIcon.icon/` — Icon Composer package (edit `icon.json`/`Assets/*.svg` as text, or open in Icon Composer); `Sources/Assets.xcassets/` holds `AccentColor`
 - `Tests/` — Swift Testing suite (runs against in-memory containers); `Tests/Fixtures/export-v1.json` is the frozen export-format compatibility fixture — never regenerate it
 - `thoughts/qrspi/` — design/research/plan artifacts from the initial build

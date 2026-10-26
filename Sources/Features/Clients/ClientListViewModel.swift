@@ -8,6 +8,7 @@ final class ClientListViewModel {
     let exerciseRepo: any ExerciseRepository
     let sessionRepo: any SessionRepository
     let reporting: any ReportingQueries
+    let reminders: ReminderCoordinator
     var clients: [ClientDTO] = []
     var query: String = ""
 
@@ -15,12 +16,14 @@ final class ClientListViewModel {
         repo: any ClientRepository,
         exerciseRepo: any ExerciseRepository,
         sessionRepo: any SessionRepository,
-        reporting: any ReportingQueries
+        reporting: any ReportingQueries,
+        reminders: ReminderCoordinator
     ) {
         self.repository = repo
         self.exerciseRepo = exerciseRepo
         self.sessionRepo = sessionRepo
         self.reporting = reporting
+        self.reminders = reminders
     }
 
     func load() async {

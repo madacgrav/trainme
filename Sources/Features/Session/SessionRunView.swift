@@ -2,13 +2,39 @@ import SwiftUI
 
 struct SessionRunView: View {
     @State var viewModel: SessionRunViewModel
+    /// Only needed by the edit sheet's "new session" mode; presenters without a
+    /// workout repository (client detail) pass nothing.
+    var workoutRepo: (any WorkoutRepository)? = nil
+    @Environment(\.dismiss) private var dismiss
     @State private var showingTextReminder = false
+    @State private var pendingStatus: SessionStatus?
+    @State private var showingEdit = false
+    @State private var confirmingDelete = false
 
     var body: some View {
         List {
+            if let injuries = viewModel.clientInjuries, !injuries.isEmpty {
+                Section {
+                    Label(injuries, systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.callout)
+                } header: {
+                    Text("Injuries / limitations")
+                }
+            }
+
             Section {
                 LabeledContent("Time", value: viewModel.session.startAt.formatted(date: .abbreviated, time: .shortened))
                 LabeledContent("Status", value: statusLabel)
+            }
+
+            Section("Notes") {
+                TextField("Session notes", text: $viewModel.notesDraft, axis: .vertical)
+                    .lineLimit(2...6)
+                    .onSubmit { Task { await viewModel.saveNotes() } }
+                if viewModel.notesDraft != (viewModel.session.notes ?? "") {
+                    Button("Save notes") { Task { await viewModel.saveNotes() } }
+                }
             }
 
             ForEach(viewModel.session.instances) { instance in
@@ -31,21 +57,63 @@ struct SessionRunView: View {
                         Task { await viewModel.setStatus(.completed) }
                     }
                     Button("Cancelled", systemImage: "xmark.circle", role: .destructive) {
-                        Task { await viewModel.setStatus(.cancelled) }
+                        pendingStatus = .cancelled
                     }
                     Button("No-show", systemImage: "person.fill.xmark", role: .destructive) {
-                        Task { await viewModel.setStatus(.noShow) }
+                        pendingStatus = .noShow
                     }
+                }
+            }
+
+            if !viewModel.canEdit {
+                Section {
+                    Text("Part of a repeating series — editing individual occurrences isn't available yet.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
             }
         }
         .navigationTitle(viewModel.clientName)
         .toolbar {
-            if let phone = viewModel.clientPhone, !phone.isEmpty, MessagingService.canSendText {
-                Button("Text reminder", systemImage: "message") {
-                    showingTextReminder = true
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if let phone = viewModel.clientPhone, !phone.isEmpty, MessagingService.canSendText {
+                    Button("Text reminder", systemImage: "message") {
+                        showingTextReminder = true
+                    }
+                }
+                Menu {
+                    if viewModel.canEdit {
+                        Button("Edit session", systemImage: "pencil") { showingEdit = true }
+                    }
+                    Button("Delete session", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .sheet(isPresented: $showingEdit) {
+            SessionEditView(
+                sessionRepo: viewModel.sessionRepo,
+                clientRepo: viewModel.clientRepo,
+                workoutRepo: workoutRepo,
+                existing: viewModel.session,
+                initialDate: viewModel.session.startAt
+            ) {
+                Task { await viewModel.reloadAfterEdit() }
+            }
+        }
+        .alert("Delete this session?", isPresented: $confirmingDelete) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.delete()
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(viewModel.canEdit
+                 ? "Logged sets for this session are deleted too. This cannot be undone."
+                 : "Only this occurrence is deleted; the rest of the series stays.")
         }
         .sheet(isPresented: $showingTextReminder) {
             if let phone = viewModel.clientPhone {
@@ -58,6 +126,18 @@ struct SessionRunView: View {
                 )
                 .ignoresSafeArea()
             }
+        }
+        .alert(
+            pendingStatus == .noShow ? "Mark as no-show?" : "Cancel this session?",
+            isPresented: Binding(get: { pendingStatus != nil }, set: { if !$0 { pendingStatus = nil } })
+        ) {
+            Button(pendingStatus == .noShow ? "Mark no-show" : "Cancel session", role: .destructive) {
+                if let status = pendingStatus { Task { await viewModel.setStatus(status) } }
+                pendingStatus = nil
+            }
+            Button("Keep", role: .cancel) { pendingStatus = nil }
+        } message: {
+            Text("This can't be changed back from the app.")
         }
         .task { await viewModel.load() }
     }
@@ -80,6 +160,7 @@ private struct PlannedEntryRow: View {
     let instanceId: UUID
 
     @State private var showingEntry = false
+    @State private var pendingDeleteSet: SetRecordDTO?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -106,7 +187,7 @@ private struct PlannedEntryRow: View {
                         .foregroundStyle(.secondary)
                     Spacer()
                     Button("Delete set", systemImage: "minus.circle", role: .destructive) {
-                        Task { await viewModel.deleteSet(set) }
+                        pendingDeleteSet = set
                     }
                     .labelStyle(.iconOnly)
                     .font(.caption)
@@ -124,19 +205,32 @@ private struct PlannedEntryRow: View {
             )
             .presentationDetents([.medium])
         }
+        .confirmationDialog(
+            "Delete this set?",
+            isPresented: Binding(get: { pendingDeleteSet != nil }, set: { if !$0 { pendingDeleteSet = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete set", role: .destructive) {
+                if let set = pendingDeleteSet { Task { await viewModel.deleteSet(set) } }
+                pendingDeleteSet = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDeleteSet = nil }
+        }
     }
 
     private var targetText: String? {
         var parts: [String] = []
         if let sets = entry.targetSets, let reps = entry.targetReps { parts.append("\(sets)×\(reps)") }
-        if let weight = entry.targetWeight { parts.append("@ \(weight.formatted()) lb") }
+        if let weight = entry.targetWeight {
+            parts.append("@ \(WeightFormatter.string(weight, unit: exercise?.defaultUnit ?? .lb))")
+        }
         if let duration = entry.targetDuration { parts.append("\(duration)s") }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     private func setSummary(_ set: SetRecordDTO) -> String {
         var parts: [String] = []
-        if let weight = set.weight { parts.append("\(weight.formatted()) lb") }
+        if let weight = set.weight { parts.append(WeightFormatter.string(weight, unit: exercise?.defaultUnit ?? .lb)) }
         if let reps = set.reps { parts.append("×\(reps)") }
         if let duration = set.duration { parts.append("\(duration)s") }
         if let distance = set.distance { parts.append("\(distance.formatted()) \(exercise?.defaultUnit.rawValue ?? "")") }
@@ -157,17 +251,19 @@ struct SetEntryView: View {
     @State private var distance: Double = 0
 
     private var metrics: MetricSet { exercise?.metrics ?? [.weight, .reps] }
+    private var weightUnit: Unit { exercise?.defaultUnit ?? .lb }
+    private var step: Double { WeightFormatter.stepIncrement(for: weightUnit) }
 
     var body: some View {
         NavigationStack {
             Form {
                 if metrics.contains(.weight) {
                     HStack {
-                        Text("Weight (lb)")
+                        Text("Weight (\(WeightFormatter.label(weightUnit)))")
                         Spacer()
-                        Button("−5") { weight = max(0, weight - 5) }.buttonStyle(.bordered)
+                        Button("−\(step.formatted())") { weight = max(0, weight - step) }.buttonStyle(.bordered)
                         Text(weight.formatted()).frame(minWidth: 56)
-                        Button("+5") { weight += 5 }.buttonStyle(.bordered)
+                        Button("+\(step.formatted())") { weight += step }.buttonStyle(.bordered)
                     }
                 }
                 if metrics.contains(.reps) {

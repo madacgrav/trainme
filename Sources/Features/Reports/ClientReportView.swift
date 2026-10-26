@@ -4,6 +4,10 @@ import SwiftUI
 struct ClientReportView: View {
     @State var viewModel: ClientReportViewModel
 
+    private var selectedUnit: Unit {
+        viewModel.exercisesWithData.first { $0.id == viewModel.selectedExerciseId }?.defaultUnit ?? .lb
+    }
+
     var body: some View {
         List {
             if viewModel.exercisesWithData.isEmpty {
@@ -24,7 +28,7 @@ struct ClientReportView: View {
                 if let pb = viewModel.personalBest, let weight = pb.weight {
                     Section {
                         LabeledContent("Personal best") {
-                            Text("\(weight.formatted()) lb")
+                            Text(WeightFormatter.string(weight, unit: selectedUnit))
                                 .fontWeight(.semibold)
                         }
                     }
@@ -34,14 +38,16 @@ struct ClientReportView: View {
                     ExerciseProgressChart(
                         points: viewModel.points,
                         personalBest: viewModel.personalBest,
-                        metric: \.topSetWeight
+                        metric: \.topSetWeight,
+                        unitLabel: WeightFormatter.label(selectedUnit)
                     )
                 }
                 Section("Estimated 1RM (Epley)") {
                     ExerciseProgressChart(
                         points: viewModel.points,
                         personalBest: nil,
-                        metric: \.est1RM
+                        metric: \.est1RM,
+                        unitLabel: WeightFormatter.label(selectedUnit)
                     )
                 }
             }
@@ -85,7 +91,8 @@ struct ClientReportView: View {
             clientName: viewModel.client.name,
             exerciseName: exercise.name,
             points: viewModel.points,
-            personalBest: viewModel.personalBest
+            personalBest: viewModel.personalBest,
+            unit: selectedUnit
         )
     }
 }
@@ -94,6 +101,7 @@ struct ExerciseProgressChart: View {
     let points: [ProgressPoint]
     let personalBest: SetRecordDTO?
     let metric: KeyPath<ProgressPoint, Double>
+    let unitLabel: String
 
     var body: some View {
         if points.count < 2 {
@@ -126,7 +134,7 @@ struct ExerciseProgressChart: View {
                     }
                 }
             }
-            .chartYAxisLabel("lb")
+            .chartYAxisLabel(unitLabel)
             .frame(height: 220)
             .padding(.vertical, 4)
         }

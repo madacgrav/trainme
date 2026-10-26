@@ -11,6 +11,8 @@ final class WorkoutBuilderViewModel {
     var name: String
     var entries: [WorkoutEntryDTO]
     var exerciseNames: [UUID: String] = [:]
+    var exerciseUnits: [UUID: Unit] = [:]
+    var errorMessage: String?
 
     init(workoutRepo: any WorkoutRepository, exerciseRepo: any ExerciseRepository, existing: WorkoutDTO?) {
         self.workoutRepo = workoutRepo
@@ -29,6 +31,7 @@ final class WorkoutBuilderViewModel {
     func loadExerciseNames() async {
         let all = (try? await exerciseRepo.all()) ?? []
         exerciseNames = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0.name) })
+        exerciseUnits = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0.defaultUnit) })
     }
 
     func addExercise(_ exercise: ExerciseDTO) {
@@ -43,6 +46,7 @@ final class WorkoutBuilderViewModel {
         )
         entries.append(entry)
         exerciseNames[exercise.id] = exercise.name
+        exerciseUnits[exercise.id] = exercise.defaultUnit
     }
 
     func move(from source: IndexSet, to destination: Int) {
@@ -62,6 +66,7 @@ final class WorkoutBuilderViewModel {
     }
 
     func save() async -> Bool {
+        errorMessage = nil
         renumber()
         let dto = WorkoutDTO(
             id: existing?.id ?? UUID(),
@@ -74,6 +79,7 @@ final class WorkoutBuilderViewModel {
             try await workoutRepo.upsert(dto)
             return true
         } catch {
+            errorMessage = "Couldn't save the workout. Please try again."
             return false
         }
     }
