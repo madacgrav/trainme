@@ -173,14 +173,16 @@ private struct PlannedEntryRow: View {
     private var targetText: String? {
         var parts: [String] = []
         if let sets = entry.targetSets, let reps = entry.targetReps { parts.append("\(sets)×\(reps)") }
-        if let weight = entry.targetWeight { parts.append("@ \(weight.formatted()) lb") }
+        if let weight = entry.targetWeight {
+            parts.append("@ \(WeightFormatter.string(weight, unit: exercise?.defaultUnit ?? .lb))")
+        }
         if let duration = entry.targetDuration { parts.append("\(duration)s") }
         return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     private func setSummary(_ set: SetRecordDTO) -> String {
         var parts: [String] = []
-        if let weight = set.weight { parts.append("\(weight.formatted()) lb") }
+        if let weight = set.weight { parts.append(WeightFormatter.string(weight, unit: exercise?.defaultUnit ?? .lb)) }
         if let reps = set.reps { parts.append("×\(reps)") }
         if let duration = set.duration { parts.append("\(duration)s") }
         if let distance = set.distance { parts.append("\(distance.formatted()) \(exercise?.defaultUnit.rawValue ?? "")") }
@@ -201,17 +203,19 @@ struct SetEntryView: View {
     @State private var distance: Double = 0
 
     private var metrics: MetricSet { exercise?.metrics ?? [.weight, .reps] }
+    private var weightUnit: Unit { exercise?.defaultUnit ?? .lb }
+    private var step: Double { WeightFormatter.stepIncrement(for: weightUnit) }
 
     var body: some View {
         NavigationStack {
             Form {
                 if metrics.contains(.weight) {
                     HStack {
-                        Text("Weight (lb)")
+                        Text("Weight (\(WeightFormatter.label(weightUnit)))")
                         Spacer()
-                        Button("−5") { weight = max(0, weight - 5) }.buttonStyle(.bordered)
+                        Button("−\(step.formatted())") { weight = max(0, weight - step) }.buttonStyle(.bordered)
                         Text(weight.formatted()).frame(minWidth: 56)
-                        Button("+5") { weight += 5 }.buttonStyle(.bordered)
+                        Button("+\(step.formatted())") { weight += step }.buttonStyle(.bordered)
                     }
                 }
                 if metrics.contains(.reps) {

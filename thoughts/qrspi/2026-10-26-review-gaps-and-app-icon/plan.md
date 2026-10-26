@@ -640,8 +640,8 @@ import Testing
 
 ### Verification
 #### Automated
-- [ ] `grep -rn '"lb"\| lb"\|(lb)' Sources/Features Sources/Services` → zero hits (only `WeightFormatter.swift` and `SettingsView.swift` may contain the literal)
-- [ ] `TEST` passes (63)
+- [x] `grep -rn '"lb"\| lb"\|(lb)' Sources/Features Sources/Services` → zero hits (only `WeightFormatter.swift` and `SettingsView.swift` may contain the literal)
+- [x] `TEST` passes (63)
 #### Manual
 - [ ] Settings → Units → kg; create exercise → unit picker preselects kg
 - [ ] kg exercise in a workout shows "@ 60 kg"; logging shows ±2.5; report axis and PB say kg; shared PDF says kg

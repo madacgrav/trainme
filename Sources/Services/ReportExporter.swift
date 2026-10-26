@@ -8,13 +8,15 @@ enum ReportExporter {
         clientName: String,
         exerciseName: String,
         points: [ProgressPoint],
-        personalBest: SetRecordDTO?
+        personalBest: SetRecordDTO?,
+        unit: Unit
     ) throws -> URL {
         let content = ReportPage(
             clientName: clientName,
             exerciseName: exerciseName,
             points: points,
-            personalBest: personalBest
+            personalBest: personalBest,
+            unit: unit
         )
         let renderer = ImageRenderer(content: content)
         renderer.proposedSize = .init(width: 612, height: 792) // US Letter @72dpi
@@ -66,6 +68,7 @@ struct ReportPage: View {
     let exerciseName: String
     let points: [ProgressPoint]
     let personalBest: SetRecordDTO?
+    let unit: Unit
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -78,11 +81,16 @@ struct ReportPage: View {
                 .foregroundStyle(.secondary)
 
             if let pb = personalBest, let weight = pb.weight {
-                Text("Personal best: \(weight.formatted()) lb on \(pb.performedAt.formatted(date: .abbreviated, time: .omitted))")
+                Text("Personal best: \(WeightFormatter.string(weight, unit: unit)) on \(pb.performedAt.formatted(date: .abbreviated, time: .omitted))")
                     .font(.subheadline)
             }
 
-            ExerciseProgressChart(points: points, personalBest: personalBest, metric: \.topSetWeight)
+            ExerciseProgressChart(
+                points: points,
+                personalBest: personalBest,
+                metric: \.topSetWeight,
+                unitLabel: WeightFormatter.label(unit)
+            )
 
             Text("Generated \(Date.now.formatted(date: .abbreviated, time: .shortened))")
                 .font(.caption)

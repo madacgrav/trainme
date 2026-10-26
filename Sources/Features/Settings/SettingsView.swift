@@ -6,6 +6,7 @@ struct SettingsView: View {
     let archive: any DataArchiving
 
     @AppStorage("lastExportAt") private var lastExportAt: Double = 0
+    @AppStorage("defaultWeightUnit") private var defaultWeightUnit: String = Unit.lb.rawValue
     @State private var exportURL: URL?
     @State private var showingExporter = false
     @State private var showingImporter = false
@@ -23,6 +24,18 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Weight unit for new exercises", selection: $defaultWeightUnit) {
+                        Text("lb").tag(Unit.lb.rawValue)
+                        Text("kg").tag(Unit.kg.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Units")
+                } footer: {
+                    Text("Each exercise keeps its own unit; change it from the Exercises tab. Existing weights are never converted.")
+                }
+
                 Section {
                     Button("Export all data…", systemImage: "square.and.arrow.up") {
                         Task {

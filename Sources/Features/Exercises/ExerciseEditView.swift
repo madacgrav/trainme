@@ -29,7 +29,8 @@ struct ExerciseEditView: View {
         _trackSets = State(initialValue: metrics.contains(.sets))
         _trackDuration = State(initialValue: metrics.contains(.duration))
         _trackDistance = State(initialValue: metrics.contains(.distance))
-        _defaultUnit = State(initialValue: existing?.defaultUnit ?? .lb)
+        let globalDefault = Unit(rawValue: UserDefaults.standard.string(forKey: "defaultWeightUnit") ?? "") ?? .lb
+        _defaultUnit = State(initialValue: existing?.defaultUnit ?? globalDefault)
     }
 
     private var metrics: MetricSet {
