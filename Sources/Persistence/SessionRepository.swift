@@ -6,14 +6,17 @@ protocol SessionRepository: Sendable {
     /// WorkoutInstance (PRD §4.2: instances are frozen copies).
     func schedule(_ dto: SessionDTO, attaching workoutIds: [UUID]) async throws
     /// Materializes a recurring series as individual sessions sharing a seriesId.
-    /// Returns the seriesId so callers can link a calendar event to the series.
+    /// `horizonWeeks` is the number of whole weeks covered, counted from the
+    /// start: 8 weeks of Tuesdays yields 8 sessions, not 9. Returns the
+    /// seriesId and the occurrence dates so callers can push a calendar event
+    /// that matches exactly what was scheduled.
     @discardableResult
     func scheduleSeries(
         _ dto: SessionDTO,
         recurrence: AppRecurrence,
         attaching workoutIds: [UUID],
         horizonWeeks: Int
-    ) async throws -> UUID
+    ) async throws -> ScheduledSeries
     func get(id: UUID) async throws -> SessionDTO?
     func sessions(from: Date, to: Date) async throws -> [SessionDTO]
     func upcoming(after: Date, limit: Int) async throws -> [SessionDTO]
@@ -33,14 +36,30 @@ protocol SessionRepository: Sendable {
     func lastSet(clientId: UUID, exerciseId: UUID) async throws -> SetRecordDTO?
 }
 
-/// Expands a recurrence rule into concrete occurrence dates. Pure function so
-/// scheduling logic is directly unit-testable (no SwiftData involved).
-func expandRecurrence(_ rule: AppRecurrence, from start: Date, to horizon: Date) -> [Date] {
+/// Result of scheduling a recurring series.
+struct ScheduledSeries: Sendable, Equatable {
+    let seriesId: UUID
+    /// Start dates of every session that was created, ascending.
+    let occurrences: [Date]
+}
+
+/// Expands a recurrence rule into concrete occurrence dates (inclusive of
+/// `horizon`). Pure function so scheduling logic is directly unit-testable (no
+/// SwiftData involved). Seconds are dropped from `start` so an anchor such as
+/// 09:00:30 still produces its own first occurrence at 09:00.
+func expandRecurrence(_ rule: AppRecurrence, from rawStart: Date, to horizon: Date) -> [Date] {
     var calendar = Calendar.current
     calendar.firstWeekday = 1 // Sunday, matching EKWeekday numbering
     var dates: [Date] = []
     let maxCount = rule.occurrenceCount ?? Int.max
     let end = rule.endDate.map { min($0, horizon) } ?? horizon
+    let timeComponents = calendar.dateComponents([.hour, .minute], from: rawStart)
+    let start = calendar.date(
+        bySettingHour: timeComponents.hour ?? 0,
+        minute: timeComponents.minute ?? 0,
+        second: 0,
+        of: rawStart
+    ) ?? rawStart
 
     switch rule.frequency {
     case .daily:
@@ -56,7 +75,6 @@ func expandRecurrence(_ rule: AppRecurrence, from start: Date, to horizon: Date)
             : rule.weekdays.sorted()
         // Walk week by week from the week containing `start`.
         guard var weekStart = calendar.dateInterval(of: .weekOfYear, for: start)?.start else { return [] }
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: start)
         outer: while weekStart <= end {
             for weekday in weekdays {
                 guard var occurrence = calendar.date(byAdding: .day, value: weekday - 1, to: weekStart) else { continue }
@@ -91,8 +109,12 @@ actor SwiftDataSessionRepository: SessionRepository {
         recurrence: AppRecurrence,
         attaching workoutIds: [UUID],
         horizonWeeks: Int = 12
-    ) async throws -> UUID {
-        let horizon = Calendar.current.date(byAdding: .weekOfYear, value: horizonWeeks, to: dto.startAt) ?? dto.startAt
+    ) async throws -> ScheduledSeries {
+        // Exclusive horizon: N weeks from the start covers exactly N weeks, so
+        // the same weekday N weeks later is not included.
+        let horizon = Calendar.current
+            .date(byAdding: .weekOfYear, value: horizonWeeks, to: dto.startAt)?
+            .addingTimeInterval(-1) ?? dto.startAt
         let occurrences = expandRecurrence(recurrence, from: dto.startAt, to: horizon)
         let seriesId = UUID()
         let duration = dto.endAt.timeIntervalSince(dto.startAt)
@@ -117,7 +139,7 @@ actor SwiftDataSessionRepository: SessionRepository {
             model.recurrenceData = recurrenceData
         }
         try modelContext.save()
-        return seriesId
+        return ScheduledSeries(seriesId: seriesId, occurrences: occurrences)
     }
 
     func get(id: UUID) async throws -> SessionDTO? {
@@ -186,6 +208,15 @@ actor SwiftDataSessionRepository: SessionRepository {
 
     func delete(id: UUID) async throws {
         guard let session = try fetch(id: id) else { return }
+        // SetRecords link to instances by id, not by relationship, so the
+        // cascade does not reach them; delete them explicitly or they orphan.
+        let instanceIds = session.instances.map(\.id)
+        if !instanceIds.isEmpty {
+            try modelContext.delete(
+                model: SetRecord.self,
+                where: #Predicate { instanceIds.contains($0.workoutInstanceId) }
+            )
+        }
         modelContext.delete(session)
         try modelContext.save()
     }

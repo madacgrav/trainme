@@ -54,3 +54,14 @@ private func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 7) -> Dat
     #expect(dates.count == 3)
     #expect(dates.allSatisfy { Calendar.current.component(.weekday, from: $0) == 3 })
 }
+
+@Test func startWithSecondsStillYieldsFirstOccurrence() {
+    // 07:00:30 anchor: the first Tuesday must not be dropped just because the
+    // generated occurrences are on the minute.
+    let start = date(2026, 7, 14).addingTimeInterval(30)
+    let rule = AppRecurrence(frequency: .weekly, interval: 1, weekdays: [3], endDate: nil, occurrenceCount: nil)
+
+    let dates = expandRecurrence(rule, from: start, to: date(2026, 7, 28))
+    #expect(dates.count == 3)
+    #expect(dates.first == date(2026, 7, 14))
+}

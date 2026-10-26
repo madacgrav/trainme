@@ -3,6 +3,7 @@ import MessageUI
 import SwiftUI
 
 enum MessagingService {
+    @MainActor
     static var canSendText: Bool {
         MFMessageComposeViewController.canSendText()
     }
@@ -39,10 +40,13 @@ struct MessageComposeView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: MFMessageComposeViewController, context: Context) {}
 
+    /// The delegate protocol is nonisolated, so the coordinator cannot itself be
+    /// main-actor bound. MessageUI always calls back on the main thread, which
+    /// `assumeIsolated` asserts before touching main-actor UIKit and SwiftUI state.
     final class Coordinator: NSObject, MFMessageComposeViewControllerDelegate {
-        let onFinish: () -> Void
+        let onFinish: @MainActor () -> Void
 
-        init(onFinish: @escaping () -> Void) {
+        init(onFinish: @escaping @MainActor () -> Void) {
             self.onFinish = onFinish
         }
 
@@ -50,8 +54,11 @@ struct MessageComposeView: UIViewControllerRepresentable {
             _ controller: MFMessageComposeViewController,
             didFinishWith result: MessageComposeResult
         ) {
-            controller.dismiss(animated: true)
-            onFinish()
+            let onFinish = onFinish  // don't capture the non-Sendable coordinator
+            MainActor.assumeIsolated {
+                controller.dismiss(animated: true)
+                onFinish()
+            }
         }
     }
 }

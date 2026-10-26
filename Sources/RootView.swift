@@ -24,6 +24,7 @@ struct RootView: View {
                 ClientListView(viewModel: ClientListViewModel(
                     repo: SwiftDataClientRepository(modelContainer: container),
                     exerciseRepo: SwiftDataExerciseRepository(modelContainer: container),
+                    sessionRepo: SwiftDataSessionRepository(modelContainer: container),
                     reporting: SwiftDataReportingQueries(modelContainer: container)
                 ))
             }

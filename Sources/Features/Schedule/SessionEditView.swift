@@ -161,12 +161,20 @@ struct SessionEditView: View {
                 endDate: nil,
                 occurrenceCount: nil
             )
-            let seriesId = try? await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
-            if addToCalendar, let seriesId, await calendar.requestAccess() {
+            let series = try? await sessionRepo.scheduleSeries(dto, recurrence: rule, attaching: workoutIds, horizonWeeks: repeatWeeks)
+            if addToCalendar, let series, let firstStart = series.occurrences.first, await calendar.requestAccess() {
+                // Anchor the calendar event on the first real occurrence and cap
+                // it at the number of sessions actually created. EventKit always
+                // keeps the event's own start date even when its weekday is not
+                // in the rule, so anchoring on `dto.startAt` (e.g. a Wednesday
+                // for a Tue/Thu series) would add a phantom calendar entry.
+                var anchor = dto
+                anchor.startAt = firstStart
+                anchor.endAt = firstStart.addingTimeInterval(dto.endAt.timeIntervalSince(dto.startAt))
                 var boundedRule = rule
-                boundedRule.occurrenceCount = repeatWeeks * max(1, rule.weekdays.count)
-                if let eventId = try? await calendar.push(dto, clientName: clientName, recurrence: boundedRule) {
-                    try? await sessionRepo.setEventIdentifierForSeries(seriesId, eventId)
+                boundedRule.occurrenceCount = series.occurrences.count
+                if let eventId = try? await calendar.push(anchor, clientName: clientName, recurrence: boundedRule) {
+                    try? await sessionRepo.setEventIdentifierForSeries(series.seriesId, eventId)
                 }
             }
         } else {

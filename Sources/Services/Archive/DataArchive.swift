@@ -36,10 +36,23 @@ actor DataArchiveActor: DataArchiving {
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(envelope)
 
+        // Exports hold client PII. They live in their own tmp folder (so stale
+        // ones are swept before each export and after sharing) and are written
+        // with complete file protection, matching the Face ID lock on the app.
         let day = Date.now.formatted(.iso8601.year().month().day().dateSeparator(.dash))
-        let url = FileManager.default.temporaryDirectory.appending(path: "TrainMe Export \(day).json")
-        try data.write(to: url, options: .atomic)
+        let url = Self.exportsDirectory.appending(path: "TrainMe Export \(day).json")
+        Self.removeExports()
+        try FileManager.default.createDirectory(at: Self.exportsDirectory, withIntermediateDirectories: true)
+        try data.write(to: url, options: [.atomic, .completeFileProtection])
         return url
+    }
+
+    static let exportsDirectory = FileManager.default.temporaryDirectory
+        .appending(path: "Exports", directoryHint: .isDirectory)
+
+    /// Deletes every export file. Call once the share/export sheet has finished.
+    nonisolated static func removeExports() {
+        try? FileManager.default.removeItem(at: exportsDirectory)
     }
 
     func importArchive(url: URL, mode: ImportMode) async throws {

@@ -19,12 +19,20 @@ struct ClientDetailView: View {
                 }
             }
             Section("Upcoming Sessions") {
-                Text("Scheduling arrives in a later phase")
-                    .foregroundStyle(.secondary)
+                if viewModel.upcomingSessions.isEmpty {
+                    Text("Nothing scheduled").foregroundStyle(.secondary)
+                }
+                ForEach(viewModel.upcomingSessions) { session in
+                    sessionLink(session)
+                }
             }
             Section("Recent Sessions") {
-                Text("Session history arrives in a later phase")
-                    .foregroundStyle(.secondary)
+                if viewModel.recentSessions.isEmpty {
+                    Text("No sessions yet").foregroundStyle(.secondary)
+                }
+                ForEach(viewModel.recentSessions) { session in
+                    sessionLink(session)
+                }
             }
             Section("Progress Reports") {
                 NavigationLink("View progress charts") {
@@ -60,6 +68,22 @@ struct ClientDetailView: View {
             ClientEditView(repo: viewModel.repository, existing: viewModel.client) {
                 Task { await viewModel.reload() }
             }
+        }
+        .task { await viewModel.reload() }
+    }
+
+    private func sessionLink(_ session: SessionDTO) -> some View {
+        NavigationLink {
+            SessionRunView(viewModel: SessionRunViewModel(
+                sessionRepo: viewModel.sessionRepo,
+                exerciseRepo: viewModel.exerciseRepo,
+                session: session,
+                clientName: viewModel.client.name,
+                clientPhone: viewModel.client.phoneE164,
+                onStatusChanged: { await viewModel.reload() }
+            ))
+        } label: {
+            SessionRow(session: session, clientName: session.startAt.formatted(date: .abbreviated, time: .omitted))
         }
     }
 }
