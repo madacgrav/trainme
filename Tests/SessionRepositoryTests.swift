@@ -172,3 +172,24 @@ private func sessionDTO(clientId: UUID = UUID(), startAt: Date = .now) -> Sessio
     try await repos.sessions.updateNotes(id: dto.id, nil)
     #expect(try await repos.sessions.get(id: dto.id)?.notes == nil)
 }
+
+@Test func updateChangesTimeNotInstances() async throws {
+    let repos = try makeRepos()
+    let template = WorkoutDTO(id: UUID(), name: "Push", entries: [
+        WorkoutEntryDTO(id: UUID(), exerciseId: UUID(), order: 0, targetSets: 3, targetReps: 8, targetWeight: 100, targetDuration: nil)
+    ], createdAt: .now, updatedAt: .now)
+    try await repos.workouts.upsert(template)
+    let dto = sessionDTO()
+    try await repos.sessions.schedule(dto, attaching: [template.id])
+    var edited = try #require(try await repos.sessions.get(id: dto.id))
+    let instanceIds = edited.instances.map(\.id)
+    #expect(instanceIds.count == 1)
+    edited.startAt = dto.startAt.addingTimeInterval(7200)
+    edited.endAt = edited.startAt.addingTimeInterval(1800)
+    edited.notes = "moved"
+    try await repos.sessions.update(edited)
+    let after = try #require(try await repos.sessions.get(id: dto.id))
+    #expect(after.startAt == edited.startAt)
+    #expect(after.notes == "moved")
+    #expect(after.instances.map(\.id) == instanceIds)
+}

@@ -6,6 +6,7 @@ import Observation
 final class SessionRunViewModel {
     let sessionRepo: any SessionRepository
     let exerciseRepo: any ExerciseRepository
+    let clientRepo: any ClientRepository
     private let calendar: any CalendarSyncing
     /// Called after a status change so the presenting screen can refresh its
     /// list and re-plan trainer alerts (a cancelled session must stop alerting).
@@ -19,9 +20,14 @@ final class SessionRunViewModel {
     var exercises: [UUID: ExerciseDTO] = [:]
     var recordedSets: [UUID: [SetRecordDTO]] = [:]  // keyed by instance id
 
+    /// Series occurrences share one recurring calendar event and are created in
+    /// bulk, so per-occurrence editing is not offered (see BACKLOG.md).
+    var canEdit: Bool { session.seriesId == nil }
+
     init(
         sessionRepo: any SessionRepository,
         exerciseRepo: any ExerciseRepository,
+        clientRepo: any ClientRepository,
         calendar: any CalendarSyncing = EventKitCalendarService(),
         session: SessionDTO,
         clientName: String,
@@ -31,6 +37,7 @@ final class SessionRunViewModel {
     ) {
         self.sessionRepo = sessionRepo
         self.exerciseRepo = exerciseRepo
+        self.clientRepo = clientRepo
         self.calendar = calendar
         self.session = session
         self.clientName = clientName
@@ -50,6 +57,26 @@ final class SessionRunViewModel {
             session = refreshed
             notesDraft = session.notes ?? ""
         }
+    }
+
+    /// Refreshes after the edit sheet saves and lets the presenter reload and
+    /// re-plan trainer alerts.
+    func reloadAfterEdit() async {
+        if let refreshed = try? await sessionRepo.get(id: session.id) {
+            session = refreshed
+            notesDraft = session.notes ?? ""
+        }
+        await onStatusChanged()
+    }
+
+    /// Removes the session (the repository deletes its set records) and its
+    /// calendar event, then lets the presenter reload and re-plan alerts.
+    func delete() async {
+        if session.seriesId == nil, let eventId = session.eventIdentifier {
+            try? await calendar.remove(eventIdentifier: eventId)
+        }
+        try? await sessionRepo.delete(id: session.id)
+        await onStatusChanged()
     }
 
     func saveNotes() async {

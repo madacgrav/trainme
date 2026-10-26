@@ -844,8 +844,8 @@ actor FakeCalendar: CalendarSyncing {
 
 ### Verification
 #### Automated
-- [ ] `TEST` passes (65)
-- [ ] `grep -n "func update" Sources/Persistence/SessionRepository.swift Sources/Services/CalendarService.swift` → 2 hits
+- [x] `TEST` passes (65)
+- [x] `grep -n "func update" Sources/Persistence/SessionRepository.swift Sources/Services/CalendarService.swift` → 2 hits (2 new implementations; grep also matches the protocol lines and `updateNotes`)
 #### Manual
 - [ ] Non-series session → ⋯ → Edit session → change time → Save → Schedule list shows new time; if "Add to iPhone calendar" was on, Calendar.app event moved
 - [ ] ⋯ → Delete session → alert → Delete → view pops, session gone from Schedule and Client detail

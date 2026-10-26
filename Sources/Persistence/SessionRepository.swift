@@ -22,6 +22,9 @@ protocol SessionRepository: Sendable {
     func upcoming(after: Date, limit: Int) async throws -> [SessionDTO]
     func forClient(_ clientId: UUID) async throws -> [SessionDTO]
     func setStatus(id: UUID, _ status: SessionStatus) async throws
+    /// Updates client, time window and notes. Instances are frozen copies and
+    /// are never touched here (PRD §4.2).
+    func update(_ dto: SessionDTO) async throws
     func setEventIdentifier(id: UUID, _ eventIdentifier: String?) async throws
     func setEventIdentifierForSeries(_ seriesId: UUID, _ eventIdentifier: String?) async throws
     func updateNotes(id: UUID, _ notes: String?) async throws
@@ -177,6 +180,16 @@ actor SwiftDataSessionRepository: SessionRepository {
     func setStatus(id: UUID, _ status: SessionStatus) async throws {
         guard let session = try fetch(id: id) else { return }
         session.statusRaw = status.rawValue
+        session.updatedAt = .now
+        try modelContext.save()
+    }
+
+    func update(_ dto: SessionDTO) async throws {
+        guard let session = try fetch(id: dto.id) else { return }
+        session.clientId = dto.clientId
+        session.startAt = dto.startAt
+        session.endAt = dto.endAt
+        session.notes = dto.notes
         session.updatedAt = .now
         try modelContext.save()
     }

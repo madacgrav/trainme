@@ -36,6 +36,10 @@ protocol CalendarSyncing: Sendable {
     /// One-way push to the default calendar. Returns the eventIdentifier to
     /// store for later update/removal.
     func push(_ session: SessionDTO, clientName: String, recurrence: AppRecurrence?) async throws -> String?
+    /// Edits the pushed event in place. Returns the identifier to store: the
+    /// same one, a new one if the event had vanished and was re-pushed, or nil
+    /// without calendar access.
+    func update(eventIdentifier: String, _ session: SessionDTO, clientName: String) async throws -> String?
     func remove(eventIdentifier: String) async throws
 }
 
@@ -58,6 +62,20 @@ actor EventKitCalendarService: CalendarSyncing {
             event.recurrenceRules = [makeEKRecurrenceRule(recurrence)]
         }
         try store.save(event, span: .futureEvents, commit: true)
+        return event.eventIdentifier
+    }
+
+    func update(eventIdentifier: String, _ session: SessionDTO, clientName: String) async throws -> String? {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else { return nil }
+        guard let event = store.event(withIdentifier: eventIdentifier) else {
+            // The user deleted or moved it; re-create so the calendar matches the app.
+            return try await push(session, clientName: clientName, recurrence: nil)
+        }
+        event.title = "Training: \(clientName)"
+        event.startDate = session.startAt
+        event.endDate = session.endAt
+        event.notes = session.notes
+        try store.save(event, span: .thisEvent, commit: true)
         return event.eventIdentifier
     }
 

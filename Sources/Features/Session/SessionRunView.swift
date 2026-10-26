@@ -2,8 +2,14 @@ import SwiftUI
 
 struct SessionRunView: View {
     @State var viewModel: SessionRunViewModel
+    /// Only needed by the edit sheet's "new session" mode; presenters without a
+    /// workout repository (client detail) pass nothing.
+    var workoutRepo: (any WorkoutRepository)? = nil
+    @Environment(\.dismiss) private var dismiss
     @State private var showingTextReminder = false
     @State private var pendingStatus: SessionStatus?
+    @State private var showingEdit = false
+    @State private var confirmingDelete = false
 
     var body: some View {
         List {
@@ -58,14 +64,56 @@ struct SessionRunView: View {
                     }
                 }
             }
+
+            if !viewModel.canEdit {
+                Section {
+                    Text("Part of a repeating series — editing individual occurrences isn't available yet.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .navigationTitle(viewModel.clientName)
         .toolbar {
-            if let phone = viewModel.clientPhone, !phone.isEmpty, MessagingService.canSendText {
-                Button("Text reminder", systemImage: "message") {
-                    showingTextReminder = true
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if let phone = viewModel.clientPhone, !phone.isEmpty, MessagingService.canSendText {
+                    Button("Text reminder", systemImage: "message") {
+                        showingTextReminder = true
+                    }
+                }
+                Menu {
+                    if viewModel.canEdit {
+                        Button("Edit session", systemImage: "pencil") { showingEdit = true }
+                    }
+                    Button("Delete session", systemImage: "trash", role: .destructive) { confirmingDelete = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
             }
+        }
+        .sheet(isPresented: $showingEdit) {
+            SessionEditView(
+                sessionRepo: viewModel.sessionRepo,
+                clientRepo: viewModel.clientRepo,
+                workoutRepo: workoutRepo,
+                existing: viewModel.session,
+                initialDate: viewModel.session.startAt
+            ) {
+                Task { await viewModel.reloadAfterEdit() }
+            }
+        }
+        .alert("Delete this session?", isPresented: $confirmingDelete) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    await viewModel.delete()
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(viewModel.canEdit
+                 ? "Logged sets for this session are deleted too. This cannot be undone."
+                 : "Only this occurrence is deleted; the rest of the series stays.")
         }
         .sheet(isPresented: $showingTextReminder) {
             if let phone = viewModel.clientPhone {

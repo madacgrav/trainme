@@ -18,12 +18,13 @@ struct ScheduleView: View {
                         SessionRunView(viewModel: SessionRunViewModel(
                             sessionRepo: viewModel.sessionRepo,
                             exerciseRepo: viewModel.exerciseRepo,
+                            clientRepo: viewModel.clientRepo,
                             session: session,
                             clientName: viewModel.clientNames[session.clientId] ?? "Client",
                             clientPhone: viewModel.clientPhones[session.clientId],
                             clientInjuries: viewModel.clientInjuries[session.clientId] ?? nil,
                             onStatusChanged: { await viewModel.load() }
-                        ))
+                        ), workoutRepo: viewModel.workoutRepo)
                     } label: {
                         SessionRow(session: session, clientName: viewModel.clientNames[session.clientId] ?? "Client")
                     }

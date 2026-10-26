@@ -95,6 +95,7 @@ struct ClientDetailView: View {
             SessionRunView(viewModel: SessionRunViewModel(
                 sessionRepo: viewModel.sessionRepo,
                 exerciseRepo: viewModel.exerciseRepo,
+                clientRepo: viewModel.repository,
                 session: session,
                 clientName: viewModel.client.name,
                 clientPhone: viewModel.client.phoneE164,
