@@ -1098,8 +1098,8 @@ Add to the P2 table: "Snapshot tests for themed screens (swift-snapshot-testing,
 
 ### Verification
 #### Automated
-- [ ] Test command passes (115). `ReportExporterTests` unchanged and green.
-- [ ] `grep -rn "\.orange\b" Sources` → 0 lines.
+- [x] Test command passes (115). `ReportExporterTests` unchanged and green.
+- [x] `grep -rn "\.orange\b" Sources` → 0 lines.
 
 #### Manual
 - [ ] Simulator in dark mode: open a client report, Share PNG → the rendered image has a white background and dark text.
@@ -1108,6 +1108,21 @@ Add to the P2 table: "Snapshot tests for themed screens (swift-snapshot-testing,
 - [ ] Final light/dark gallery: `p6-{schedule,session,report}-{light,dark}.png`.
 
 ---
+
+#### Left open (implementation session hit its usage limit 2026-10-26)
+- Phase 6 manual items above (dark-mode Share PNG check, VoiceOver chart label, the
+  `p6-*` AX3 pass and final light/dark gallery) were not captured. The simulator store
+  is seeded (clients Sam Rivera + self profile Max, workout "Upper At", one completed
+  session with logged sets) so the report screens have data.
+- `SetTableView`: when the view opens with sets already logged, the draft is not
+  re-seeded from the previous set once it loads (`resetDraftIfUntouched` guards on
+  `logged.isEmpty`); track whether the user touched the draft instead.
+- Export banner on Schedule truncates at AX3 ("Back…" / "Ex-port"); pre-existing
+  layout, worth a stacked variant in the AX3 pass.
+- Phase 4 adaptation: `SchemaV1` now holds a frozen nested copy of the 1.0 models
+  because SwiftData rejects a plan whose versions share identical classes.
+- Phase 5 adaptation: Icon Composer's appearance vocabulary is `light`/`dark`/`tinted`;
+  the "mono" layer is declared under `tinted`.
 
 ## Resume notes
 

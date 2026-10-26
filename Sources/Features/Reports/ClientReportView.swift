@@ -36,7 +36,7 @@ struct ClientReportView: View {
                         }
                         if c.unresolved > 0 {
                             Text("\(c.unresolved) past \(c.unresolved == 1 ? "session" : "sessions") still marked scheduled")
-                                .font(.caption).foregroundStyle(.orange)
+                                .font(.caption).foregroundStyle(Theme.Colors.warning)
                         }
                     }
                 }
@@ -126,21 +126,23 @@ struct ExerciseProgressChart: View {
                     )
                     .interpolationMethod(.monotone)
                     .symbol(.circle)
+                    .foregroundStyle(Theme.Colors.brandPrimary)
                 }
                 if let pb = personalBest, let weight = pb.weight {
                     PointMark(
                         x: .value("Date", Calendar.current.startOfDay(for: pb.performedAt), unit: .day),
                         y: .value("Weight", weight)
                     )
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.Colors.personalBest)
                     .annotation(position: .top, alignment: .center) {
                         Text("PB")
                             .font(.caption2.bold())
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.Colors.personalBest)
                     }
                 }
             }
             .chartYAxisLabel(unitLabel)
+            .accessibilityLabel("\(unitLabel) over time, \(plotted.count) points, latest \(plotted.last?.value.formatted() ?? "none")")
             .frame(height: height)
             .padding(.vertical, 4)
         }
@@ -179,6 +181,8 @@ struct VolumeChart: View {
                     .foregroundStyle(by: .value("Unit", bar.unit))
             }
             .chartYAxisLabel("weight × reps")
+            .chartForegroundStyleScale(["lb": Theme.Colors.brandPrimary, "kg": Theme.Colors.brandSecondary])
+            .accessibilityLabel("Weekly volume, \(weeks.count) weeks")
             .frame(height: height)
             .padding(.vertical, 4)
         }

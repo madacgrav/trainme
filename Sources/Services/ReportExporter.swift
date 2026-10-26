@@ -97,6 +97,7 @@ struct ExerciseReportPage: View {
         .padding(32)
         .frame(width: ReportExporter.pageSize.width, height: ReportExporter.pageSize.height, alignment: .topLeading)
         .background(.white)
+        .environment(\.colorScheme, .light)
     }
 }
 
@@ -132,5 +133,6 @@ struct ClientOverviewPage: View {
         .padding(32)
         .frame(width: ReportExporter.pageSize.width, height: ReportExporter.pageSize.height, alignment: .topLeading)
         .background(.white)
+        .environment(\.colorScheme, .light)
     }
 }
