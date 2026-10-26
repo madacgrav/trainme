@@ -12,8 +12,8 @@ Tech debt and test gaps from that review (rows 20–27) were addressed in
 [#32](https://github.com/madacgrav/trainme/pull/32); see the [Done](#done) table and
 `thoughts/qrspi/2026-10-26-tech-debt/` for the design and plan.
 
-P1 reporting features (rows 1–4, 9, 10) were addressed on branch
-`2026-10-26-p1-reporting`; see the [Done](#done) table and
+P1 reporting features (rows 1–4, 9, 10) were addressed in
+[#34](https://github.com/madacgrav/trainme/pull/34); see the [Done](#done) table and
 `thoughts/qrspi/2026-10-26-p1-reporting/` for the design and plan.
 
 ## P1 — features
@@ -62,7 +62,7 @@ Addressed in [#32](https://github.com/madacgrav/trainme/pull/32) (one commit per
 Still worth a look (found while doing the above, not fixed): a failed `upcoming` fetch in
 `ReminderCoordinator.refresh` clears all pending alerts instead of leaving them.
 
-Addressed on `2026-10-26-p1-reporting` (one commit per phase; PR link added when opened).
+Addressed in [#34](https://github.com/madacgrav/trainme/pull/34) (one commit per phase).
 
 | # | Item | Resolution | Issue |
 |---|------|------------|-------|

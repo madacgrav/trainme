@@ -1537,3 +1537,4 @@ Body lists the six issues as `Closes #3, #4, #5, #6, #11, #12` and links
 - [x] Record: `- 2026-MM-DD: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build; all passed.`
 
 - 2026-10-26: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build (2efbd7a, Debug); all passed.
+- 2026-10-26: PR opened as [#34](https://github.com/madacgrav/trainme/pull/34).
