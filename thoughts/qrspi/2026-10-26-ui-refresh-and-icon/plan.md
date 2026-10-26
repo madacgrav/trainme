@@ -1060,11 +1060,11 @@ Already done in Phase 1 §1 (`AccentColor` dark `#F59E0B`). No further change.
 
 ### Verification
 #### Automated
-- [ ] `xcrun actool --compile /tmp/icon-out --platform iphonesimulator --minimum-deployment-target 26.0 --app-icon AppIcon --output-partial-info-plist /tmp/icon-out/p.plist Sources/AppIcon.icon Sources/Assets.xcassets 2>&1 | grep -ci "error"` prints `0`.
-- [ ] Test command passes (115).
+- [x] `xcrun actool --compile /tmp/icon-out --platform iphonesimulator --minimum-deployment-target 26.0 --app-icon AppIcon --output-partial-info-plist /tmp/icon-out/p.plist Sources/AppIcon.icon Sources/Assets.xcassets 2>&1 | grep -ci "error"` prints `0`.
+- [x] Test command passes (115).
 
 #### Manual
-- [ ] Simulator home screen: long-press → Edit Home Screen → appearance Light / Dark / Tinted / Clear; capture `p5-icon-{default,dark,tinted,clear}.png`. The line is clearly visible at 60pt.
+- [x] Simulator home screen: long-press → Edit Home Screen → appearance Light / Dark / Tinted / Clear; capture `p5-icon-{default,dark,tinted,clear}.png`. The line is clearly visible at 60pt.
 - [ ] If `actool` rejects the specialization keys after two corrected attempts, revert `icon.json` to the single-appearance file (keep the bolder SVGs) and add a BACKLOG row "Explicit icon appearance variants".
 
 ---

@@ -1,5 +1,11 @@
 {
   "fill": "system-light",
+  "fill-specializations": [
+    {
+      "appearance": "dark",
+      "value": "system-dark"
+    }
+  ],
   "groups": [
     {
       "blur-material": null,
@@ -27,6 +33,14 @@
           "image-name-specializations": [
             {
               "value": "line.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "line.svg"
+            },
+            {
+              "appearance": "tinted",
+              "value": "line-mono.svg"
             }
           ],
           "name": "rising line",
@@ -58,6 +72,10 @@
           "image-name-specializations": [
             {
               "value": "background.svg"
+            },
+            {
+              "appearance": "dark",
+              "value": "background-dark.svg"
             }
           ],
           "name": "background",
