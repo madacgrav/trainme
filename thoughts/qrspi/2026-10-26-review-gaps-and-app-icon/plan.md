@@ -984,7 +984,7 @@ private func daysAgo(_ d: Int) -> Date { now.addingTimeInterval(-Double(d) * 86_
 
 ### Verification
 #### Automated
-- [ ] `TEST` passes (70)
+- [x] `TEST` passes (70)
 #### Manual
 - [ ] Fresh simulator install → no banner; complete one session → banner appears on Schedule and "!" badge on Settings
 - [ ] Tap Export in banner → lands on Settings; complete an export → banner and badge clear

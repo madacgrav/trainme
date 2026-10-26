@@ -193,3 +193,17 @@ private func sessionDTO(clientId: UUID = UUID(), startAt: Date = .now) -> Sessio
     #expect(after.notes == "moved")
     #expect(after.instances.map(\.id) == instanceIds)
 }
+
+@Test func completedCountHonorsSince() async throws {
+    let repos = try makeRepos()
+    let a = sessionDTO()
+    let b = sessionDTO()
+    try await repos.sessions.schedule(a, attaching: [])
+    try await repos.sessions.schedule(b, attaching: [])
+    try await repos.sessions.setStatus(id: a.id, .completed)
+    let mid = Date.now
+    try await Task.sleep(for: .milliseconds(20))
+    try await repos.sessions.setStatus(id: b.id, .completed)
+    #expect(try await repos.sessions.completedCount(since: nil) == 2)
+    #expect(try await repos.sessions.completedCount(since: mid) == 1)
+}

@@ -5,7 +5,9 @@ struct RootView: View {
     let container: ModelContainer
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeenBackupNotice") private var hasSeenBackupNotice = false
+    @AppStorage("lastExportAt") private var lastExportAt: Double = 0
     @State private var selectedTab = 0
+    @State private var exportDue = false
     @State private var reminders: ReminderCoordinator
 
     init(container: ModelContainer) {
@@ -56,6 +58,7 @@ struct RootView: View {
             Tab("Settings", systemImage: "gearshape", value: 4) {
                 SettingsView(archive: DataArchiveActor(modelContainer: container))
             }
+            .badge(exportDue ? Text("!") : nil)
         }
         .alert("Your data lives only on this iPhone", isPresented: backupNoticeBinding) {
             Button("Got it") { hasSeenBackupNotice = true }
@@ -65,8 +68,15 @@ struct RootView: View {
         .onChange(of: scenePhase) { _, phase in
             // `.inactive` fires during Face ID; only a real foreground matters.
             if phase == .active {
-                Task { await reminders.refresh() }
+                Task {
+                    await reminders.refresh()
+                    exportDue = await reminders.exportReminderIsDue()
+                }
             }
+        }
+        .onChange(of: lastExportAt) {
+            // A successful export clears the badge immediately.
+            Task { exportDue = await reminders.exportReminderIsDue() }
         }
         .task {
             let container = container
@@ -74,6 +84,7 @@ struct RootView: View {
                 try? await SeedImporter.seedIfEmpty(repo: SwiftDataExerciseRepository(modelContainer: container))
             }.value
             await reminders.requestAuthorization()
+            exportDue = await reminders.exportReminderIsDue()
         }
     }
 }

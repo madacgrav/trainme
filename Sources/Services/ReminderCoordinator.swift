@@ -24,6 +24,14 @@ final class ReminderCoordinator {
         _ = await notifications.requestAuthorization()
     }
 
+    /// Whether the export-staleness rule fires right now (drives the Settings badge).
+    func exportReminderIsDue(defaults: UserDefaults = .standard) async -> Bool {
+        let last = defaults.double(forKey: "lastExportAt")
+        let lastExport: Date? = last == 0 ? nil : Date(timeIntervalSince1970: last)
+        let completed = (try? await sessionRepo.completedCount(since: lastExport)) ?? 0
+        return exportReminderDue(lastExportAt: lastExport, now: .now, completedSinceExport: completed)
+    }
+
     /// Re-plans the nearest-N alerts (the 64-pending budget is enforced in `selectAlerts`).
     func refresh() async {
         let upcoming = (try? await sessionRepo.upcoming(after: .now, limit: 64)) ?? []

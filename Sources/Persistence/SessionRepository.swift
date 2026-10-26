@@ -29,6 +29,9 @@ protocol SessionRepository: Sendable {
     func setEventIdentifierForSeries(_ seriesId: UUID, _ eventIdentifier: String?) async throws
     func updateNotes(id: UUID, _ notes: String?) async throws
     func delete(id: UUID) async throws
+    /// Sessions marked completed after `since` (all of them when nil). Drives
+    /// the export-staleness reminder.
+    func completedCount(since: Date?) async throws -> Int
 
     // Recording (Phase 5)
     func recordSet(_ dto: SetRecordDTO) async throws
@@ -232,6 +235,14 @@ actor SwiftDataSessionRepository: SessionRepository {
         }
         modelContext.delete(session)
         try modelContext.save()
+    }
+
+    func completedCount(since: Date?) async throws -> Int {
+        let completedRaw = SessionStatus.completed.rawValue
+        let floor = since ?? .distantPast
+        return try modelContext.fetchCount(FetchDescriptor<Session>(
+            predicate: #Predicate { $0.statusRaw == completedRaw && $0.updatedAt > floor }
+        ))
     }
 
     // MARK: - Recording
