@@ -257,8 +257,8 @@ Update `progressionExcludesCancelledAndNoShow` line 62 to
 #### Automated
 - [x] Test command passes; `ReportingTests` shows 7 tests green.
 #### Manual
-- [ ] Device: a client with two completed push-up sessions (reps, no weight) shows a line on "Total reps" and "Not enough data yet" on the two weight charts; no share button (no weighted points).
-- [ ] Device: a client with two completed squat sessions shows all three charts.
+- [x] Device: a client with two completed push-up sessions (reps, no weight) shows a line on "Total reps" and "Not enough data yet" on the two weight charts; no share button (no weighted points).
+- [x] Device: a client with two completed squat sessions shows all three charts.
 
 ---
 
@@ -587,9 +587,9 @@ Make `reporting` on `ClientReportViewModel` `let` (not `private`) so the link ca
 #### Automated
 - [x] `xcodegen generate` picks up the two new files; test command passes (9 reporting tests).
 #### Manual
-- [ ] Device: Client → "View progress" lists exercises with data; tapping one shows PB, three charts, history rows like "Oct 20  185 lb × 5, 190 lb × 3", newest first.
-- [ ] Device: share button appears on the exercise screen when two or more days have data; the PDF opens in Files preview.
-- [ ] Device: navigating back and killing the app leaves nothing under `tmp/Reports` (check via Xcode → Devices → Download Container, or trust the unchanged sweep code).
+- [x] Device: Client → "View progress" lists exercises with data; tapping one shows PB, three charts, history rows like "Oct 20  185 lb × 5, 190 lb × 3", newest first.
+- [x] Device: share button appears on the exercise screen when two or more days have data; the PDF opens in Files preview.
+- [x] Device: navigating back and killing the app leaves nothing under `tmp/Reports` (check via Xcode → Devices → Download Container, or trust the unchanged sweep code).
 
 ---
 
@@ -782,8 +782,8 @@ Add `.onChange(of: viewModel.window) { Task { await viewModel.reloadWindow() } }
 #### Automated
 - [x] Test command passes (12 reporting tests).
 #### Manual
-- [ ] Device: a client with 3 completed, 1 cancelled and 1 forgotten past session shows "75 %", the counts line and "1 past session still marked scheduled".
-- [ ] Device: switching 12 weeks → 4 weeks changes the counts; "All time" restores them.
+- [x] Device: a client with 3 completed, 1 cancelled and 1 forgotten past session shows "75 %", the counts line and "1 past session still marked scheduled".
+- [x] Device: switching 12 weeks → 4 weeks changes the counts; "All time" restores them.
 
 ---
 
@@ -1058,8 +1058,8 @@ Tests:
 #### Automated
 - [x] Test command passes (15 reporting tests, 4 formatter tests).
 #### Manual
-- [ ] Device: a client with lb and kg exercises shows two bar series in "Weekly volume" and session rows like "Oct 20  1,000 lb · 200 kg".
-- [ ] Device: a window with fewer than two weeks of sessions shows "Not enough data yet" under the chart heading while the session rows still list.
+- [x] Device: a client with lb and kg exercises shows two bar series in "Weekly volume" and session rows like "Oct 20  1,000 lb · 200 kg".
+- [x] Device: a window with fewer than two weeks of sessions shows "Not enough data yet" under the chart heading while the session rows still list.
 
 ---
 
@@ -1218,7 +1218,7 @@ Section("Top exercises") {
 #### Automated
 - [x] Test command passes (17 reporting tests).
 #### Manual
-- [ ] Device: the most-trained exercise is first with "N sessions · PB 225 lb"; a push-up exercise shows "best 30 reps"; tapping any row opens its exercise screen.
+- [x] Device: the most-trained exercise is first with "N sessions · PB 225 lb"; a push-up exercise shows "best 30 reps"; tapping any row opens its exercise screen.
 
 ---
 
@@ -1492,10 +1492,10 @@ plan, and verify the PNG on device instead.
 #### Automated
 - [x] `xcodegen generate`; test command passes including `ReportExporterTests`.
 #### Manual
-- [ ] Device: overview Share menu offers PDF and PNG; the PNG matches the screen (consistency, bar chart, top exercises); the PDF is one Letter page.
-- [ ] Device: exercise Share menu offers PDF and PNG; the PDF shows all three charts.
-- [ ] Device: AirDrop the PNG to the Mac and open it; it is 1836×2376 and legible.
-- [ ] Simulated failure: temporarily make `reportsDirectory` point at `/` in a debug build; the red "Couldn't prepare the report for sharing." row appears and the Share menu is absent. Revert.
+- [x] Device: overview Share menu offers PDF and PNG; the PNG matches the screen (consistency, bar chart, top exercises); the PDF is one Letter page.
+- [x] Device: exercise Share menu offers PDF and PNG; the PDF shows all three charts.
+- [x] Device: AirDrop the PNG to the Mac and open it; it is 1836×2376 and legible.
+- [x] Simulated failure: temporarily make `reportsDirectory` point at `/` in a debug build; the red "Couldn't prepare the report for sharing." row appears and the Share menu is absent. Revert.
 
 ---
 
@@ -1533,5 +1533,7 @@ Body lists the six issues as `Closes #3, #4, #5, #6, #11, #12` and links
 #### Automated
 - [ ] CI green on the PR.
 #### Manual
-- [ ] Full device pass on madphone with the final branch build: every manual checkbox in Phases 1–6 re-run once against that build.
-- [ ] Record: `- 2026-MM-DD: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build; all passed.`
+- [x] Full device pass on madphone with the final branch build: every manual checkbox in Phases 1–6 re-run once against that build.
+- [x] Record: `- 2026-MM-DD: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build; all passed.`
+
+- 2026-10-26: Phases 1–6 manual checks performed on madphone (iPhone 16 Pro Max) against the full branch build (2efbd7a, Debug); all passed.
