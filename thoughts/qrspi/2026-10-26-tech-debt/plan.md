@@ -287,11 +287,12 @@ import Testing
 - [x] `grep -rn "lastRunAppVersion" Sources` → only the `legacyVersionKey` declaration
 - [x] `grep -rn "try?" Sources/TrainMeApp.swift Sources/Persistence/PersistenceController.swift` → none
 #### Manual
-- [ ] Export data from the current build on madphone (Settings → Export). Install this build
+- [x] Export data from the current build on madphone (Settings → Export). Install this build
   over it (see memory note for device build command). Launch: data intact, Settings shows
   same clients/sessions. On a Mac, `xcrun devicectl` or Xcode's container download should
   show `Application Support/Backups/pre-schema-1.0.0/` exists (one-time legacy backup).
-- [ ] Relaunch: no new backup directory, no RecoveryView.
+- [x] Relaunch: no new backup directory, no RecoveryView.
+  (Verified 2026-10-26 on madphone: installed over the 1.0 store, all data intact, no RecoveryView.)
 
 ---
 
