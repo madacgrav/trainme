@@ -13,6 +13,9 @@ struct SetTableView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     @State private var draft: SetDraft
     @State private var focusedMetric: Metric
+    /// True once the trainer edits or logs the draft; a seeded-but-untouched draft is
+    /// replaced when the exercise or previous set arrives after the first render.
+    @State private var draftTouched = false
 
     enum Metric: CaseIterable {
         case weight, reps, duration, distance
@@ -52,7 +55,7 @@ struct SetTableView: View {
             }
         }
         // The exercise and previous set arrive after the first render; re-seed the
-        // draft from them as long as nothing has been logged yet.
+        // draft from them as long as the trainer has not touched it.
         .onChange(of: exercise?.id) { resetDraftIfUntouched() }
         .onChange(of: previous?.id) { resetDraftIfUntouched() }
     }
@@ -91,7 +94,10 @@ struct SetTableView: View {
     private func draftRow(index: Int) -> some View {
         layout(index: index) {
             Button(previousText) {
-                if let previous { draft = SetDraft(from: previous, metrics: metrics) }
+                if let previous {
+                    draft = SetDraft(from: previous, metrics: metrics)
+                    draftTouched = true
+                }
             }
             .buttonStyle(.plain)
             .lineLimit(1)
@@ -114,7 +120,10 @@ struct SetTableView: View {
                 }
             }
         } trailing: {
-            Button { onLog(draft) } label: {
+            Button {
+                draftTouched = true
+                onLog(draft)
+            } label: {
                 Image(systemName: "checkmark")
                     .font(.headline)
                     .frame(minWidth: 44, minHeight: 44)
@@ -145,25 +154,25 @@ struct SetTableView: View {
         case .weight:
             MetricStepper(
                 label: "Weight (\(WeightFormatter.label(unit)))",
-                value: Binding(get: { draft.weight ?? 0 }, set: { draft.weight = $0 }),
+                value: Binding(get: { draft.weight ?? 0 }, set: { draft.weight = $0; draftTouched = true }),
                 step: WeightFormatter.stepIncrement(for: unit)
             )
         case .reps:
             MetricStepper(
                 label: "Reps",
-                value: Binding(get: { Double(draft.reps ?? 0) }, set: { draft.reps = Int($0) }),
+                value: Binding(get: { Double(draft.reps ?? 0) }, set: { draft.reps = Int($0); draftTouched = true }),
                 step: 1, fractionDigits: 0
             )
         case .duration:
             MetricStepper(
                 label: "Duration (sec)",
-                value: Binding(get: { Double(draft.duration ?? 0) }, set: { draft.duration = Int($0) }),
+                value: Binding(get: { Double(draft.duration ?? 0) }, set: { draft.duration = Int($0); draftTouched = true }),
                 step: 15, fractionDigits: 0
             )
         case .distance:
             MetricStepper(
                 label: "Distance (\(unit.rawValue))",
-                value: Binding(get: { draft.distance ?? 0 }, set: { draft.distance = $0 }),
+                value: Binding(get: { draft.distance ?? 0 }, set: { draft.distance = $0; draftTouched = true }),
                 step: 0.25, fractionDigits: 2
             )
         }
@@ -290,7 +299,7 @@ struct SetTableView: View {
     }
 
     private func resetDraftIfUntouched() {
-        guard logged.isEmpty else { return }
+        guard !draftTouched else { return }
         draft = Self.initialDraft(entry: entry, previous: previous, metrics: metrics)
         focusedMetric = Self.firstMetric(in: metrics)
     }

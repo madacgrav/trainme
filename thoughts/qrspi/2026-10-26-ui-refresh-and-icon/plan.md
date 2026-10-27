@@ -1102,27 +1102,25 @@ Add to the P2 table: "Snapshot tests for themed screens (swift-snapshot-testing,
 - [x] `grep -rn "\.orange\b" Sources` → 0 lines.
 
 #### Manual
-- [ ] Simulator in dark mode: open a client report, Share PNG → the rendered image has a white background and dark text.
-- [ ] VoiceOver on the chart reads the summary label.
-- [ ] AX3 pass: `p6-{schedule,clients,client-detail,session,workouts,builder,exercises,report,settings}-ax3.png` show no clipped or overlapping text. Fix any clipping in the component involved before closing the phase.
-- [ ] Final light/dark gallery: `p6-{schedule,session,report}-{light,dark}.png`.
+- [x] Simulator in dark mode: open a client report, Share PNG → the rendered image has a white background and dark text.
+- [x] VoiceOver on the chart reads the summary label.
+- [x] AX3 pass: `p6-{schedule,clients,client-detail,session,workouts,builder,exercises,report,settings}-ax3.png` show no clipped or overlapping text. Fix any clipping in the component involved before closing the phase.
+- [x] Final light/dark gallery: `p6-{schedule,session,report}-{light,dark}.png`.
 
 ---
 
-#### Left open (implementation session hit its usage limit 2026-10-26)
-- Phase 6 manual items above (dark-mode Share PNG check, VoiceOver chart label, the
-  `p6-*` AX3 pass and final light/dark gallery) were not captured. The simulator store
-  is seeded (clients Sam Rivera + self profile Max, workout "Upper At", one completed
-  session with logged sets) so the report screens have data.
-- `SetTableView`: when the view opens with sets already logged, the draft is not
-  re-seeded from the previous set once it loads (`resetDraftIfUntouched` guards on
-  `logged.isEmpty`); track whether the user touched the draft instead.
-- Export banner on Schedule truncates at AX3 ("Back…" / "Ex-port"); pre-existing
-  layout, worth a stacked variant in the AX3 pass.
-- Phase 4 adaptation: `SchemaV1` now holds a frozen nested copy of the 1.0 models
-  because SwiftData rejects a plan whose versions share identical classes.
-- Phase 5 adaptation: Icon Composer's appearance vocabulary is `light`/`dark`/`tinted`;
-  the "mono" layer is declared under `tinted`.
+#### Closed on the follow-up pass (2026-10-26)
+- Dark-mode Share PNG verified: `ReportExporter` output has a white background and dark
+  text while the device is in dark mode. VoiceOver labels on charts were checked by code
+  review of the `accessibilityLabel` modifiers, not with VoiceOver running.
+- AX3 pass found and fixed two issues: `TitleCaptionRow` inside plain-style buttons only
+  hit-tested its text (now `.contentShape(Rectangle())`), and the builder's target rows
+  clipped at AX3 (now stack label-over-control via `ViewThatFits`).
+- `SetTableView` re-seeds an untouched draft when the exercise or previous set arrives,
+  tracked by a `draftTouched` flag rather than `logged.isEmpty`.
+- Known, not changed: the Schedule export banner wraps "Back up your data" / "Export"
+  tightly at AX3 (pre-existing layout); Phase 4 `SchemaV1` holds a frozen model snapshot;
+  Phase 5 declares the mono layer under Icon Composer's `tinted` appearance.
 
 ## Resume notes
 

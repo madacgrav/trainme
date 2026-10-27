@@ -29,6 +29,8 @@ struct TitleCaptionRow<Trailing: View>: View {
             Spacer(minLength: 0)
             trailing()
         }
+        // Plain-style buttons hit-test only their content; make the whole row tappable.
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 }

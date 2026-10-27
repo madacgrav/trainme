@@ -152,9 +152,7 @@ struct EntryTargetEditView: View {
                 Section("Targets") {
                     OptionalStepper(label: "Sets", value: $entry.targetSets, range: 1...20, defaultValue: 3)
                     OptionalStepper(label: "Reps", value: $entry.targetReps, range: 1...100, defaultValue: 10)
-                    HStack {
-                        Text("Weight (\(WeightFormatter.label(unit)))")
-                        Spacer()
+                    AdaptiveLabeledRow(label: "Weight (\(WeightFormatter.label(unit)))") {
                         MetricStepper(
                             label: "Weight (\(WeightFormatter.label(unit)))",
                             value: Binding(
@@ -186,20 +184,44 @@ struct OptionalStepper: View {
     var step: Int = 1
 
     var body: some View {
-        HStack {
-            Text(label)
-            Spacer()
-            if let current = value {
-                MetricStepper(
-                    label: label,
-                    value: Binding(get: { Double(current) }, set: { value = Int($0) }),
-                    step: Double(step),
-                    range: Double(range.lowerBound)...Double(range.upperBound),
-                    fractionDigits: 0
-                )
-                IconButton(title: "Clear", systemImage: "xmark.circle.fill", tint: .tertiary) { value = nil }
-            } else {
+        if let current = value {
+            AdaptiveLabeledRow(label: label) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    MetricStepper(
+                        label: label,
+                        value: Binding(get: { Double(current) }, set: { value = Int($0) }),
+                        step: Double(step),
+                        range: Double(range.lowerBound)...Double(range.upperBound),
+                        fractionDigits: 0
+                    )
+                    IconButton(title: "Clear", systemImage: "xmark.circle.fill", tint: .tertiary) { value = nil }
+                }
+            }
+        } else {
+            HStack {
+                Text(label)
+                Spacer()
                 Button("Set") { value = defaultValue }
+            }
+        }
+    }
+}
+
+/// Label beside its control when there is room; label above it at accessibility sizes.
+private struct AdaptiveLabeledRow<Control: View>: View {
+    let label: String
+    @ViewBuilder let control: () -> Control
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                Text(label)
+                Spacer()
+                control()
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(label)
+                control()
             }
         }
     }
