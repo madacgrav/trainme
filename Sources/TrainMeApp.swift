@@ -16,7 +16,7 @@ final class AppBootstrap {
         // A snapshot left behind means the app died mid-import; it is stale now.
         SafeImporter.removeSnapshot()
         do {
-            try StoreBackup.backupIfVersionChanged(storeURL: Self.storeURL, currentVersion: SchemaV1.versionString)
+            try StoreBackup.backupIfVersionChanged(storeURL: Self.storeURL, currentVersion: SchemaV2.versionString)
         } catch {
             Log.persistence.error("Pre-open backup failed: \(error.localizedDescription)")
         }
@@ -88,24 +88,17 @@ struct RecoveryView: View {
     @State private var confirmingReset = false
 
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 44))
-                .foregroundStyle(.orange)
-            Text("TrainMe couldn't open its data store")
-                .font(.headline)
-            Text(message)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-
-            Button("Restore last backup") { onRestoreBackup() }
-                .buttonStyle(.borderedProminent)
+        HeroScreen(
+            systemImage: "exclamationmark.triangle.fill",
+            title: "TrainMe couldn't open its data store",
+            message: message,
+            tint: Theme.Colors.warning,
+            primary: ("Restore last backup", onRestoreBackup)
+        ) {
             Button("Start fresh (then import an export file)", role: .destructive) {
                 confirmingReset = true
             }
         }
-        .padding(32)
         .alert("Delete the data store?", isPresented: $confirmingReset) {
             Button("Delete and start fresh", role: .destructive) { onReset() }
             Button("Cancel", role: .cancel) {}

@@ -8,12 +8,8 @@ struct ClientReportView: View {
 
     var body: some View {
         List {
-            if let message = viewModel.errorMessage {
-                Section { Text(message).foregroundStyle(.red) }
-            }
-            if let exportError {
-                Section { Text(exportError).foregroundStyle(.red) }
-            }
+            ErrorBanner(message: viewModel.errorMessage)
+            ErrorBanner(message: exportError)
             if viewModel.topExercises.isEmpty {
                 ContentUnavailableView(
                     "No completed sessions yet",
@@ -40,7 +36,7 @@ struct ClientReportView: View {
                         }
                         if c.unresolved > 0 {
                             Text("\(c.unresolved) past \(c.unresolved == 1 ? "session" : "sessions") still marked scheduled")
-                                .font(.caption).foregroundStyle(.orange)
+                                .font(.caption).foregroundStyle(Theme.Colors.warning)
                         }
                     }
                 }
@@ -63,26 +59,17 @@ struct ClientReportView: View {
                             ExerciseReportView(viewModel: ExerciseReportViewModel(
                                 reporting: viewModel.reporting, client: viewModel.client, exercise: item.exercise))
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.exercise.name)
-                                Text(ClientReportViewModel.detail(for: item)).font(.caption).foregroundStyle(.secondary)
-                            }
+                            TitleCaptionRow(title: item.exercise.name, caption: ClientReportViewModel.detail(for: item))
                         }
                     }
                 }
             }
         }
+        .themedScreen()
         .navigationTitle("\(viewModel.client.name) — Progress")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let files {
-                Menu {
-                    ShareLink("Share PDF", item: files.pdf)
-                    ShareLink("Share PNG", item: files.png)
-                } label: {
-                    Label("Share report", systemImage: "square.and.arrow.up")
-                }
-            }
+            ShareReportMenu(files: files)
         }
         .task { await viewModel.load(); renderReport() }
         .onChange(of: viewModel.window) { Task { await viewModel.reloadWindow(); renderReport() } }
@@ -139,21 +126,23 @@ struct ExerciseProgressChart: View {
                     )
                     .interpolationMethod(.monotone)
                     .symbol(.circle)
+                    .foregroundStyle(Theme.Colors.brandPrimary)
                 }
                 if let pb = personalBest, let weight = pb.weight {
                     PointMark(
                         x: .value("Date", Calendar.current.startOfDay(for: pb.performedAt), unit: .day),
                         y: .value("Weight", weight)
                     )
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(Theme.Colors.personalBest)
                     .annotation(position: .top, alignment: .center) {
                         Text("PB")
                             .font(.caption2.bold())
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.Colors.personalBest)
                     }
                 }
             }
             .chartYAxisLabel(unitLabel)
+            .accessibilityLabel("\(unitLabel) over time, \(plotted.count) points, latest \(plotted.last?.value.formatted() ?? "none")")
             .frame(height: height)
             .padding(.vertical, 4)
         }
@@ -192,8 +181,19 @@ struct VolumeChart: View {
                     .foregroundStyle(by: .value("Unit", bar.unit))
             }
             .chartYAxisLabel("weight × reps")
+            .chartForegroundStyleScale(["lb": Theme.Colors.brandPrimary, "kg": Theme.Colors.brandSecondary])
+            .accessibilityLabel("Weekly volume, \(weeks.count) weeks")
             .frame(height: height)
             .padding(.vertical, 4)
         }
+    }
+}
+
+#Preview("Client report") {
+    let repos = PreviewFixtures.repositories()
+    NavigationStack {
+        ClientReportView(viewModel: ClientReportViewModel(
+            reporting: repos.reporting, exerciseRepo: repos.exercises, client: PreviewFixtures.client
+        ))
     }
 }

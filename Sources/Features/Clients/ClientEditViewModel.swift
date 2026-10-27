@@ -6,6 +6,8 @@ import Observation
 final class ClientEditViewModel {
     private let repo: any ClientRepository
     private let existing: ClientDTO?
+    /// Self-use profile: no phone number required and none shown.
+    let isSelf: Bool
 
     var name: String
     var phoneRaw: String
@@ -14,9 +16,10 @@ final class ClientEditViewModel {
     var notes: String
     var errorMessage: String?
 
-    init(repo: any ClientRepository, existing: ClientDTO?) {
+    init(repo: any ClientRepository, existing: ClientDTO?, isSelf: Bool = false) {
         self.repo = repo
         self.existing = existing
+        self.isSelf = existing?.isSelf ?? isSelf
         self.name = existing?.name ?? ""
         self.phoneRaw = existing?.phoneE164 ?? ""
         self.goal = existing?.goal ?? ""
@@ -29,12 +32,13 @@ final class ClientEditViewModel {
     var phoneValid: Bool { normalizeE164(phoneRaw) != nil }
 
     var canSave: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && phoneValid
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && (isSelf || phoneValid)
     }
 
     func save() async -> Bool {
         errorMessage = nil
-        guard let phone = normalizeE164(phoneRaw) else { return false }
+        let phone = isSelf ? (normalizeE164(phoneRaw) ?? "") : normalizeE164(phoneRaw)
+        guard let phone else { return false }
         let dto = ClientDTO(
             id: existing?.id ?? UUID(),
             name: name.trimmingCharacters(in: .whitespaces),
@@ -44,7 +48,8 @@ final class ClientEditViewModel {
             notes: notes.isEmpty ? nil : notes,
             isArchived: existing?.isArchived ?? false,
             createdAt: existing?.createdAt ?? .now,
-            updatedAt: .now
+            updatedAt: .now,
+            isSelf: isSelf
         )
         do {
             try await repo.upsert(dto)

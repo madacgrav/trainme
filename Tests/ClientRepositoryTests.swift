@@ -84,3 +84,53 @@ private func dto(id: UUID = UUID(), name: String, phone: String = "+15551234567"
     try await repo.setArchived(id: id, false)
     #expect(try await repo.all().count == 2)
 }
+
+// MARK: - Self-use client (SchemaV2)
+
+@Test func selfClientRoundTrip() async throws {
+    let repo = try makeRepo()
+    var me = dto(name: "Me", phone: "")
+    me.isSelf = true
+    try await repo.upsert(me)
+    try await repo.upsert(dto(name: "Alex"))
+
+    let found = try await repo.selfClient()
+    #expect(found?.name == "Me")
+    #expect(found?.isSelf == true)
+    #expect(try await repo.all().count == 2)
+    #expect(try await repo.all().first { $0.name == "Alex" }?.isSelf == false)
+}
+
+@MainActor
+@Test func selfClientSkipsPhoneValidation() async throws {
+    let repo = try makeRepo()
+    let vm = ClientEditViewModel(repo: repo, existing: nil, isSelf: true)
+    vm.name = "Me"
+    #expect(vm.canSave)
+
+    let saved = await vm.save()
+
+    #expect(saved)
+    let stored = try #require(try await repo.selfClient())
+    #expect(stored.phoneE164 == "")
+    #expect(stored.isSelf)
+
+    // A regular client still needs a valid phone number.
+    let regular = ClientEditViewModel(repo: repo, existing: nil)
+    regular.name = "Alex"
+    #expect(!regular.canSave)
+}
+
+@Test func exportOmitsIsSelf() throws {
+    var me = dto(name: "Me")
+    me.isSelf = true
+
+    let data = try JSONEncoder().encode(me)
+    let object = try #require(try JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(object["isSelf"] == nil)
+    #expect(object["name"] as? String == "Me")
+
+    let decoded = try JSONDecoder().decode(ClientDTO.self, from: data)
+    #expect(decoded.isSelf == false)
+    #expect(decoded.name == "Me")
+}

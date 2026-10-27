@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct ScheduleView: View {
@@ -13,7 +14,7 @@ struct ScheduleView: View {
                 if viewModel.isExportReminderDue {
                     HStack(spacing: 12) {
                         Image(systemName: "externaldrive.badge.exclamationmark")
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.Colors.warning)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Back up your data").font(.subheadline.bold())
                             Text("Export is the only backup on this phone.")
@@ -31,7 +32,7 @@ struct ScheduleView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .background(.orange.opacity(0.12))
+                    .background(Theme.Colors.warning.opacity(0.12))
                 }
 
                 DatePicker("Date", selection: $viewModel.selectedDate, displayedComponents: .date)
@@ -53,12 +54,16 @@ struct ScheduleView: View {
                     } label: {
                         SessionRow(session: session, clientName: viewModel.clientNames[session.clientId] ?? "Client")
                     }
+                    .themedRows()
                 }
                 .overlay {
-                    if viewModel.sessionsForDay.isEmpty {
-                        ContentUnavailableView("No sessions this day", systemImage: "calendar")
+                    if viewModel.isLoading && viewModel.sessionsForDay.isEmpty {
+                        ProgressView()
+                    } else if viewModel.sessionsForDay.isEmpty {
+                        EmptyState(title: "No sessions this day", systemImage: "calendar")
                     }
                 }
+                .themedScreen()
             }
             .navigationTitle("Schedule")
             .toolbar {
@@ -99,6 +104,7 @@ struct SessionRow: View {
         HStack {
             VStack(alignment: .leading) {
                 Text(clientName)
+                    .font(Theme.Fonts.display())
                 Text(session.startAt.formatted(date: .omitted, time: .shortened) + " – "
                      + session.endAt.formatted(date: .omitted, time: .shortened))
                     .font(.caption)
@@ -110,21 +116,26 @@ struct SessionRow: View {
                 }
             }
             Spacer()
-            statusBadge
+            StatusChip(status: session.status)
         }
     }
+}
 
-    @ViewBuilder
-    private var statusBadge: some View {
-        switch session.status {
-        case .scheduled:
-            EmptyView()
-        case .completed:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-        case .cancelled:
-            Image(systemName: "xmark.circle").foregroundStyle(.secondary)
-        case .noShow:
-            Image(systemName: "person.fill.xmark").foregroundStyle(.orange)
-        }
+#Preview("Schedule") {
+    let repos = PreviewFixtures.repositories()
+    ScheduleView(viewModel: ScheduleViewModel(
+        sessionRepo: repos.sessions,
+        clientRepo: repos.clients,
+        workoutRepo: repos.workouts,
+        exerciseRepo: repos.exercises,
+        reminders: repos.reminders
+    ))
+}
+
+#Preview("Session row") {
+    List {
+        SessionRow(session: PreviewFixtures.scheduledSession, clientName: "Sam Rivera")
+        SessionRow(session: { var s = PreviewFixtures.scheduledSession; s.status = .completed; return s }(), clientName: "Sam Rivera")
+        SessionRow(session: { var s = PreviewFixtures.scheduledSession; s.status = .noShow; return s }(), clientName: "Sam Rivera")
     }
 }

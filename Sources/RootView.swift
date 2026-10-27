@@ -6,6 +6,7 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasSeenBackupNotice") private var hasSeenBackupNotice = false
     @AppStorage("lastExportAt") private var lastExportAt: Double = 0
+    @AppStorage("wantsSelfClient") private var wantsSelfClient = false
     @State private var selectedTab = 0
     @State private var exportDue = false
     @State private var seedFailed = false
@@ -38,7 +39,7 @@ struct RootView: View {
                     openSettings: { selectedTab = 4 }
                 )
             }
-            Tab("Clients", systemImage: "person.2", value: 1) {
+            Tab("Clients", systemImage: "person.2.fill", value: 1) {
                 ClientListView(viewModel: ClientListViewModel(
                     repo: SwiftDataClientRepository(modelContainer: container),
                     exerciseRepo: SwiftDataExerciseRepository(modelContainer: container),
@@ -47,22 +48,30 @@ struct RootView: View {
                     reminders: reminders
                 ))
             }
-            Tab("Workouts", systemImage: "list.clipboard", value: 2) {
+            Tab("Workouts", systemImage: "list.clipboard.fill", value: 2) {
                 WorkoutListView(viewModel: WorkoutListViewModel(
                     workoutRepo: SwiftDataWorkoutRepository(modelContainer: container),
                     exerciseRepo: SwiftDataExerciseRepository(modelContainer: container)
                 ))
             }
-            Tab("Exercises", systemImage: "dumbbell", value: 3) {
+            Tab("Exercises", systemImage: "dumbbell.fill", value: 3, role: .search) {
                 ExerciseListView(viewModel: ExerciseListViewModel(repo: SwiftDataExerciseRepository(modelContainer: container)))
             }
-            Tab("Settings", systemImage: "gearshape", value: 4) {
+            Tab("Settings", systemImage: "gearshape.fill", value: 4) {
                 SettingsView(archive: DataArchiveActor(modelContainer: container), reminders: reminders)
             }
             .badge(exportDue ? Text("!") : nil)
         }
+        .tabBarMinimizeBehavior(.onScrollDown)
+        .fontDesign(.rounded)
+        .tint(Theme.Colors.accent)
         .alert("Your data lives only on this iPhone", isPresented: backupNoticeBinding) {
             Button("Got it") { hasSeenBackupNotice = true }
+            Button("Add yourself as a client") {
+                hasSeenBackupNotice = true
+                selectedTab = 1
+                wantsSelfClient = true
+            }
         } message: {
             Text("There is no cloud backup in this version. Export your data regularly from Settings — an export file is the only way to recover from a lost or broken phone.")
         }

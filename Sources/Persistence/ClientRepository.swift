@@ -8,6 +8,8 @@ protocol ClientRepository: Sendable {
     func upsert(_ dto: ClientDTO) async throws
     func setArchived(id: UUID, _ archived: Bool) async throws
     func delete(id: UUID) async throws
+    /// The trainer's own profile, if they added themselves as a client.
+    func selfClient() async throws -> ClientDTO?
 }
 
 @ModelActor
@@ -57,6 +59,13 @@ actor SwiftDataClientRepository: ClientRepository {
         guard let existing = try fetch(id: id) else { return }
         modelContext.delete(existing)
         try modelContext.save()
+    }
+
+    func selfClient() async throws -> ClientDTO? {
+        try modelContext
+            .fetch(FetchDescriptor<Client>(predicate: #Predicate { $0.isSelf }))
+            .first
+            .map(ClientDTO.init)
     }
 
     private func fetch(id: UUID) throws -> Client? {

@@ -8,12 +8,8 @@ struct ExerciseReportView: View {
 
     var body: some View {
         List {
-            if let message = viewModel.errorMessage {
-                Section { Text(message).foregroundStyle(.red) }
-            }
-            if let exportError {
-                Section { Text(exportError).foregroundStyle(.red) }
-            }
+            ErrorBanner(message: viewModel.errorMessage)
+            ErrorBanner(message: exportError)
             if let pb = viewModel.personalBest, let weight = pb.weight {
                 Section {
                     LabeledContent("Personal best") {
@@ -38,25 +34,18 @@ struct ExerciseReportView: View {
                     Text("No sets recorded yet").foregroundStyle(.secondary)
                 }
                 ForEach(viewModel.history) { entry in
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(entry.sessionStart.formatted(date: .abbreviated, time: .omitted))
-                        Text(viewModel.summary(of: entry.sets))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    TitleCaptionRow(
+                        title: entry.sessionStart.formatted(date: .abbreviated, time: .omitted),
+                        caption: viewModel.summary(of: entry.sets)
+                    )
                 }
             }
         }
+        .themedScreen()
         .navigationTitle(viewModel.exercise.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let files {
-                Menu {
-                    ShareLink("Share PDF", item: files.pdf)
-                    ShareLink("Share PNG", item: files.png)
-                } label: {
-                    Label("Share report", systemImage: "square.and.arrow.up")
-                }
-            }
+            ShareReportMenu(files: files)
         }
         .task { await viewModel.load(); renderReport() }
         .onDisappear {
@@ -79,5 +68,14 @@ struct ExerciseReportView: View {
             files = nil
             exportError = "Couldn't prepare the report for sharing."
         }
+    }
+}
+
+#Preview("Exercise report") {
+    let repos = PreviewFixtures.repositories()
+    NavigationStack {
+        ExerciseReportView(viewModel: ExerciseReportViewModel(
+            reporting: repos.reporting, client: PreviewFixtures.client, exercise: PreviewFixtures.bench
+        ))
     }
 }

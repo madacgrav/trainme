@@ -9,23 +9,18 @@ struct WorkoutListView: View {
     var body: some View {
         NavigationStack {
             List {
-                if let errorMessage = viewModel.errorMessage {
-                    Section {
-                        Text(errorMessage).foregroundStyle(.red)
-                    }
-                }
+                ErrorBanner(message: viewModel.errorMessage)
                 ForEach(viewModel.workouts) { workout in
                     Button {
                         editingWorkout = workout
                     } label: {
-                        VStack(alignment: .leading) {
-                            Text(workout.name)
-                                .foregroundStyle(.primary)
-                            Text("\(workout.entries.count) exercise\(workout.entries.count == 1 ? "" : "s")")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        TitleCaptionRow(
+                            title: workout.name,
+                            caption: "\(workout.entries.count) exercise\(workout.entries.count == 1 ? "" : "s")"
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .themedRows()
                     .swipeActions(edge: .trailing) {
                         Button("Delete", systemImage: "trash", role: .destructive) {
                             pendingDelete = workout
@@ -37,10 +32,13 @@ struct WorkoutListView: View {
                 }
             }
             .overlay {
-                if viewModel.workouts.isEmpty {
-                    ContentUnavailableView("No workouts yet", systemImage: "list.clipboard")
+                if viewModel.isLoading && viewModel.workouts.isEmpty {
+                    ProgressView()
+                } else if viewModel.workouts.isEmpty {
+                    EmptyState(title: "No workouts yet", systemImage: "list.clipboard.fill")
                 }
             }
+            .themedScreen()
             .navigationTitle("Workouts")
             .toolbar {
                 Button("Add", systemImage: "plus") { showingNew = true }
@@ -79,4 +77,11 @@ struct WorkoutListView: View {
             .task { await viewModel.load() }
         }
     }
+}
+
+#Preview("Workouts") {
+    let repos = PreviewFixtures.repositories()
+    WorkoutListView(viewModel: WorkoutListViewModel(
+        workoutRepo: repos.workouts, exerciseRepo: repos.exercises
+    ))
 }

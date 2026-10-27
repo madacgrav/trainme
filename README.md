@@ -60,6 +60,7 @@ pull request (`.github/workflows/ci.yml`).
 - `Sources/Persistence/` — `@ModelActor` repositories, seed import, store backup
 - `Sources/Services/` — notifications, messaging, EventKit calendar, PDF reports, export/import archive, app lock
 - `Sources/Support/` — shared helpers (logging, formatters)
+- `Sources/Support/Theme.swift` — color/font/spacing tokens (colorsets live in `Sources/Assets.xcassets`); `Sources/Features/Components/` — shared SwiftUI building blocks
 - `Sources/Features/` — SwiftUI views + view models per feature (Schedule, Clients, Workouts, Exercises, Session, Reports, Settings)
 - `Sources/AppIcon.icon/` — Icon Composer package (edit `icon.json`/`Assets/*.svg` as text, or open in Icon Composer); `Sources/Assets.xcassets/` holds `AccentColor`
 - `Tests/` — Swift Testing suite (runs against in-memory containers); `Tests/Fixtures/export-v1.json` is the frozen export-format compatibility fixture — never regenerate it

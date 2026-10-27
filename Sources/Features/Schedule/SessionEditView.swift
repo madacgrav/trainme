@@ -115,7 +115,7 @@ struct SessionEditView: View {
                                 }
                                 .font(.caption2)
                                 .buttonStyle(.bordered)
-                                .tint(repeatWeekdays.contains(weekday) ? .accentColor : .gray)
+                                .tint(repeatWeekdays.contains(weekday) ? Theme.Colors.accent : Color.secondary)
                             }
                         }
                         Stepper("For \(repeatWeeks) weeks", value: $repeatWeeks, in: 1...26)
@@ -125,9 +125,7 @@ struct SessionEditView: View {
                 Section("Notes") {
                     TextField("Notes", text: $notes, axis: .vertical)
                 }
-                if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red) }
-                }
+                ErrorBanner(message: errorMessage)
                 Section {
                     Toggle(isEditing ? "Keep in iPhone calendar" : "Add to iPhone calendar", isOn: $addToCalendar)
                 } footer: {
@@ -149,11 +147,14 @@ struct SessionEditView: View {
                             }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(!canSave)
                 }
             }
             .task {
                 clients = (try? await clientRepo.all()) ?? []
+                // A solo user training themselves should not have to pick every time.
+                if selectedClientId == nil, clients.count == 1 { selectedClientId = clients[0].id }
                 if let workoutRepo {
                     workouts = (try? await workoutRepo.all()) ?? []
                 }
@@ -304,4 +305,14 @@ struct SessionEditView: View {
             calendarWarning = message
         }
     }
+}
+
+#Preview("New session") {
+    let repos = PreviewFixtures.repositories()
+    SessionEditView(
+        sessionRepo: repos.sessions,
+        clientRepo: repos.clients,
+        workoutRepo: repos.workouts,
+        initialDate: .now
+    ) { _ in }
 }

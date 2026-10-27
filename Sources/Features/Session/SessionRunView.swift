@@ -11,18 +11,15 @@ struct SessionRunView: View {
     @State private var showingEdit = false
     @State private var confirmingDelete = false
     @State private var calendarWarning: String?
+    @State private var pendingDeleteSet: SetRecordDTO?
 
     var body: some View {
         List {
-            if let errorMessage = viewModel.errorMessage {
-                Section {
-                    Text(errorMessage).foregroundStyle(.red)
-                }
-            }
+            ErrorBanner(message: viewModel.errorMessage)
             if let injuries = viewModel.clientInjuries, !injuries.isEmpty {
                 Section {
                     Label(injuries, systemImage: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.Colors.warning)
                         .font(.callout)
                 } header: {
                     Text("Injuries / limitations")
@@ -46,13 +43,23 @@ struct SessionRunView: View {
             ForEach(viewModel.session.instances) { instance in
                 Section(instance.name) {
                     ForEach(instance.plannedEntries) { entry in
-                        PlannedEntryRow(
-                            entry: entry,
-                            exercise: viewModel.exercises[entry.exerciseId],
-                            sets: viewModel.sets(instanceId: instance.id, exerciseId: entry.exerciseId),
-                            viewModel: viewModel,
-                            instanceId: instance.id
-                        )
+                        VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                            TitleCaptionRow(
+                                title: viewModel.exercises[entry.exerciseId]?.name ?? "Exercise",
+                                caption: targetText(entry)
+                            )
+                            SetTableView(
+                                entry: entry,
+                                exercise: viewModel.exercises[entry.exerciseId],
+                                logged: viewModel.sets(instanceId: instance.id, exerciseId: entry.exerciseId),
+                                previous: viewModel.previousSets[entry.exerciseId],
+                                onLog: { draft in
+                                    Task { await viewModel.record(draft: draft, instanceId: instance.id, exerciseId: entry.exerciseId) }
+                                },
+                                onDelete: { pendingDeleteSet = $0 }
+                            )
+                        }
+                        .themedRows()
                     }
                 }
             }
@@ -60,7 +67,7 @@ struct SessionRunView: View {
             if viewModel.session.status == .scheduled {
                 Section {
                     Button("Mark Completed", systemImage: "checkmark.circle") {
-                        Task { await viewModel.setStatus(.completed) }
+                        pendingStatus = .completed
                     }
                     Button("Cancelled", systemImage: "xmark.circle", role: .destructive) {
                         pendingStatus = .cancelled
@@ -79,7 +86,19 @@ struct SessionRunView: View {
                 }
             }
         }
+        .themedScreen()
         .navigationTitle(viewModel.clientName)
+        .safeAreaInset(edge: .top) {
+            if viewModel.session.status == .scheduled, viewModel.plannedSetCount > 0 {
+                ProgressView(value: viewModel.progress)
+                    .tint(Theme.Colors.success)
+                    .padding(.horizontal)
+                    .accessibilityLabel("Session progress")
+                    .accessibilityValue("\(viewModel.loggedSetCount) of \(viewModel.plannedSetCount) sets")
+            }
+        }
+        .sensoryFeedback(.success, trigger: viewModel.lastLoggedSetId)
+        .scrollDismissesKeyboard(.interactively)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if let phone = viewModel.clientPhone, !phone.isEmpty, MessagingService.canSendText {
@@ -93,8 +112,9 @@ struct SessionRunView: View {
                     }
                     Button("Delete session", systemImage: "trash", role: .destructive) { confirmingDelete = true }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Label("More", systemImage: "ellipsis.circle").labelStyle(.iconOnly)
                 }
+                .accessibilityLabel("More actions")
             }
         }
         .sheet(isPresented: $showingEdit) {
@@ -144,82 +164,18 @@ struct SessionRunView: View {
             }
         }
         .alert(
-            pendingStatus == .noShow ? "Mark as no-show?" : "Cancel this session?",
+            statusAlertTitle,
             isPresented: Binding(get: { pendingStatus != nil }, set: { if !$0 { pendingStatus = nil } })
         ) {
-            Button(pendingStatus == .noShow ? "Mark no-show" : "Cancel session", role: .destructive) {
+            Button(statusAlertConfirm, role: pendingStatus == .completed ? nil : .destructive) {
                 if let status = pendingStatus { Task { await viewModel.setStatus(status) } }
                 pendingStatus = nil
             }
             Button("Keep", role: .cancel) { pendingStatus = nil }
         } message: {
-            Text("This can't be changed back from the app.")
-        }
-        .task { await viewModel.load() }
-    }
-
-    private var statusLabel: String {
-        switch viewModel.session.status {
-        case .scheduled: "Scheduled"
-        case .completed: "Completed"
-        case .cancelled: "Cancelled"
-        case .noShow: "No-show"
-        }
-    }
-}
-
-private struct PlannedEntryRow: View {
-    let entry: PlannedEntryDTO
-    let exercise: ExerciseDTO?
-    let sets: [SetRecordDTO]
-    let viewModel: SessionRunViewModel
-    let instanceId: UUID
-
-    @State private var showingEntry = false
-    @State private var pendingDeleteSet: SetRecordDTO?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(exercise?.name ?? "Exercise")
-                    if let target = targetText {
-                        Text("Target: \(target)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Button("Log set", systemImage: "plus.circle.fill") { showingEntry = true }
-                    .labelStyle(.iconOnly)
-                    .font(.title2)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tint)
-            }
-            ForEach(sets) { set in
-                HStack {
-                    Text("Set \(set.setIndex + 1): \(setSummary(set))")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Delete set", systemImage: "minus.circle", role: .destructive) {
-                        pendingDeleteSet = set
-                    }
-                    .labelStyle(.iconOnly)
-                    .font(.caption)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .sheet(isPresented: $showingEntry) {
-            SetEntryView(
-                exercise: exercise,
-                plannedEntry: entry,
-                instanceId: instanceId,
-                viewModel: viewModel
-            )
-            .presentationDetents([.medium])
+            Text(pendingStatus == .completed
+                 ? "You can still log or delete sets afterwards."
+                 : "This can't be changed back from the app.")
         }
         .confirmationDialog(
             "Delete this set?",
@@ -232,123 +188,57 @@ private struct PlannedEntryRow: View {
             }
             Button("Cancel", role: .cancel) { pendingDeleteSet = nil }
         }
+        .task { await viewModel.load() }
     }
 
-    private var targetText: String? {
+    private var statusAlertTitle: String {
+        switch pendingStatus {
+        case .completed: "Mark completed?"
+        case .noShow: "Mark as no-show?"
+        default: "Cancel this session?"
+        }
+    }
+
+    private var statusAlertConfirm: String {
+        switch pendingStatus {
+        case .completed: "Mark completed"
+        case .noShow: "Mark no-show"
+        default: "Cancel session"
+        }
+    }
+
+    private func targetText(_ entry: PlannedEntryDTO) -> String? {
+        let exercise = viewModel.exercises[entry.exerciseId]
         var parts: [String] = []
         if let sets = entry.targetSets, let reps = entry.targetReps { parts.append("\(sets)×\(reps)") }
         if let weight = entry.targetWeight {
             parts.append("@ \(WeightFormatter.string(weight, unit: exercise?.defaultUnit ?? .lb))")
         }
         if let duration = entry.targetDuration { parts.append("\(duration)s") }
-        return parts.isEmpty ? nil : parts.joined(separator: " ")
+        return parts.isEmpty ? nil : "Target: " + parts.joined(separator: " ")
     }
 
-    private func setSummary(_ set: SetRecordDTO) -> String {
-        var parts: [String] = []
-        if let weight = set.weight { parts.append(WeightFormatter.string(weight, unit: exercise?.defaultUnit ?? .lb)) }
-        if let reps = set.reps { parts.append("×\(reps)") }
-        if let duration = set.duration { parts.append("\(duration)s") }
-        if let distance = set.distance { parts.append("\(distance.formatted()) \(exercise?.defaultUnit.rawValue ?? "")") }
-        return parts.joined(separator: " ")
+    private var statusLabel: String {
+        switch viewModel.session.status {
+        case .scheduled: "Scheduled"
+        case .completed: "Completed"
+        case .cancelled: "Cancelled"
+        case .noShow: "No-show"
+        }
     }
 }
 
-struct SetEntryView: View {
-    @Environment(\.dismiss) private var dismiss
-    let exercise: ExerciseDTO?
-    let plannedEntry: PlannedEntryDTO
-    let instanceId: UUID
-    let viewModel: SessionRunViewModel
-
-    @State private var weight: Double = 0
-    @State private var reps: Int = 0
-    @State private var duration: Int = 0
-    @State private var distance: Double = 0
-
-    private var metrics: MetricSet { exercise?.metrics ?? [.weight, .reps] }
-    private var weightUnit: Unit { exercise?.defaultUnit ?? .lb }
-    private var step: Double { WeightFormatter.stepIncrement(for: weightUnit) }
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                if metrics.contains(.weight) {
-                    HStack {
-                        Text("Weight (\(WeightFormatter.label(weightUnit)))")
-                        Spacer()
-                        Button("−\(step.formatted())") { weight = max(0, weight - step) }.buttonStyle(.bordered)
-                        Text(weight.formatted()).frame(minWidth: 56)
-                        Button("+\(step.formatted())") { weight += step }.buttonStyle(.bordered)
-                    }
-                }
-                if metrics.contains(.reps) {
-                    HStack {
-                        Text("Reps")
-                        Spacer()
-                        Button("−1") { reps = max(0, reps - 1) }.buttonStyle(.bordered)
-                        Text("\(reps)").frame(minWidth: 44)
-                        Button("+1") { reps += 1 }.buttonStyle(.bordered)
-                    }
-                }
-                if metrics.contains(.duration) {
-                    HStack {
-                        Text("Duration (sec)")
-                        Spacer()
-                        Button("−15") { duration = max(0, duration - 15) }.buttonStyle(.bordered)
-                        Text("\(duration)").frame(minWidth: 52)
-                        Button("+15") { duration += 15 }.buttonStyle(.bordered)
-                    }
-                }
-                if metrics.contains(.distance) {
-                    HStack {
-                        Text("Distance (\(exercise?.defaultUnit.rawValue ?? "mi"))")
-                        Spacer()
-                        TextField("0", value: $distance, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 80)
-                    }
-                }
-
-                Button("Repeat last set", systemImage: "arrow.counterclockwise") {
-                    Task {
-                        if let last = await viewModel.lastSet(exerciseId: plannedEntry.exerciseId) {
-                            weight = last.weight ?? weight
-                            reps = last.reps ?? reps
-                            duration = last.duration ?? duration
-                            distance = last.distance ?? distance
-                        }
-                    }
-                }
-            }
-            .navigationTitle(exercise?.name ?? "Log Set")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Log") {
-                        Task {
-                            await viewModel.record(
-                                instanceId: instanceId,
-                                exerciseId: plannedEntry.exerciseId,
-                                weight: metrics.contains(.weight) ? weight : nil,
-                                reps: metrics.contains(.reps) ? reps : nil,
-                                duration: metrics.contains(.duration) ? duration : nil,
-                                distance: metrics.contains(.distance) ? (distance > 0 ? distance : nil) : nil
-                            )
-                            dismiss()
-                        }
-                    }
-                }
-            }
-            .onAppear {
-                weight = plannedEntry.targetWeight ?? 0
-                reps = plannedEntry.targetReps ?? 0
-                duration = plannedEntry.targetDuration ?? 0
-            }
-        }
+#Preview("Session") {
+    let repos = PreviewFixtures.repositories()
+    NavigationStack {
+        SessionRunView(viewModel: SessionRunViewModel(
+            sessionRepo: repos.sessions,
+            exerciseRepo: repos.exercises,
+            clientRepo: repos.clients,
+            session: PreviewFixtures.scheduledSession,
+            clientName: "Sam Rivera",
+            clientPhone: "+15551234567",
+            clientInjuries: "Left knee — avoid deep squats"
+        ), workoutRepo: repos.workouts)
     }
 }

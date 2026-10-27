@@ -8,6 +8,7 @@ final class ExerciseListViewModel {
     var exercises: [ExerciseDTO] = []
     var query: String = ""
     var categoryFilter: ExerciseCategory?
+    var isLoading = false
 
     init(repo: any ExerciseRepository) {
         self.repository = repo
@@ -19,6 +20,8 @@ final class ExerciseListViewModel {
     }
 
     func load() async {
+        isLoading = true
+        defer { isLoading = false }
         exercises = (try? await repository.search(prefix: query)) ?? []
     }
 }

@@ -36,6 +36,7 @@ P1 reporting features (rows 1–4, 9, 10) were addressed in
 | 15 | Settings toggles: app lock on/off, calendar default, notification lead times | PRD §5.7 / §5.11 | Settings has Units and Backup only | [#17](https://github.com/madacgrav/trainme/issues/17) |
 | 16 | Reorder workout entries via edit mode | PRD §5.3 P1 | `.onMove` is wired but no `EditButton` exists | [#18](https://github.com/madacgrav/trainme/issues/18) |
 | 17 | Session notes on Schedule and client-detail rows | PRD §5.5 | Notes visible only inside the run screen | [#19](https://github.com/madacgrav/trainme/issues/19) |
+| 33 | Snapshot tests for themed screens (swift-snapshot-testing, CI baseline) | UI refresh verification | Previews + manual screenshots only; see `thoughts/qrspi/2026-10-26-ui-refresh-and-icon/screenshots/` | — |
 
 ## Deferred by owner decision
 
@@ -72,3 +73,13 @@ Addressed in [#34](https://github.com/madacgrav/trainme/pull/34) (one commit per
 | 4 | Per-exercise history list | `historyBySession`; `ExerciseReportView` "History" section | [#6](https://github.com/madacgrav/trainme/issues/6) |
 | 9 | Report as PNG image | `ReportExporter.render` writes PDF and PNG at 3×; Share menu on both screens | [#11](https://github.com/madacgrav/trainme/issues/11) |
 | 10 | Total-reps progression chart | `ProgressPoint.totalReps`; third chart on the exercise screen and page | [#12](https://github.com/madacgrav/trainme/issues/12) |
+
+Addressed in the UI refresh branch `2026-10-26-ui-refresh-and-icon` (one commit per phase).
+
+| # | Item | Resolution | Issue |
+|---|------|------------|-------|
+| 28 | Theme tokens and shared components | `Sources/Support/Theme.swift`, `Sources/Features/Components/`; dark-first colorsets with light values | — |
+| 29 | Inline set table | `SetTableView`, `MetricStepper`, `SetDraft`; one-tap logging with haptic and progress bar | — |
+| 30 | Self-use client | `Client.isSelf`, `SchemaV2` lightweight migration (SchemaV1 keeps a frozen model snapshot), "About You" sheet | — |
+| 31 | Icon appearance variants | Bolder layers, explicit dark and tinted specializations in `icon.json` | — |
+| 32 | Previews for every screen | `PreviewFixtures` (seeded in-memory container) and a `#Preview` per feature screen | — |

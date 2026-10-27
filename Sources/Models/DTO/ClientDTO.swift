@@ -10,6 +10,12 @@ struct ClientDTO: Codable, Sendable, Identifiable, Equatable {
     var isArchived: Bool
     var createdAt: Date
     var updatedAt: Date
+    /// Device-local flag; intentionally excluded from the export format.
+    var isSelf: Bool = false
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, phoneE164, goal, injuries, notes, isArchived, createdAt, updatedAt
+    }
 }
 
 extension ClientDTO {
@@ -23,7 +29,8 @@ extension ClientDTO {
             notes: model.notes,
             isArchived: model.isArchived,
             createdAt: model.createdAt,
-            updatedAt: model.updatedAt
+            updatedAt: model.updatedAt,
+            isSelf: model.isSelf
         )
     }
 
@@ -34,6 +41,7 @@ extension ClientDTO {
         model.injuries = injuries
         model.notes = notes
         model.isArchived = isArchived
+        model.isSelf = isSelf
         model.updatedAt = .now
     }
 
@@ -46,6 +54,7 @@ extension ClientDTO {
             injuries: injuries,
             notes: notes,
             isArchived: isArchived,
+            isSelf: isSelf,
             createdAt: createdAt,
             updatedAt: updatedAt
         )

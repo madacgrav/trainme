@@ -227,3 +227,105 @@ private func makeFailingEnv() async throws -> FailingEnv {
     #expect(env.vm.recordedSets == before)
     #expect(try await env.real.setsFor(instanceId: env.instanceId).isEmpty)
 }
+
+// MARK: - Inline set table (Phase 3)
+
+private struct SessionEnv {
+    let sessions: SwiftDataSessionRepository
+    let exerciseId: UUID
+    let instanceId: UUID
+    let entry: PlannedEntryDTO
+    let vm: SessionRunViewModel
+}
+
+/// One exercise with the given metrics, a 3×8 @ 100 template attached to a
+/// stored session, and a view model over real repositories.
+@MainActor
+private func makeSessionEnv(metrics: MetricSet = [.weight, .reps]) async throws -> SessionEnv {
+    let container = try PersistenceController.makeContainer(inMemory: true)
+    let sessions = SwiftDataSessionRepository(modelContainer: container)
+    let exercises = SwiftDataExerciseRepository(modelContainer: container)
+    let clients = SwiftDataClientRepository(modelContainer: container)
+    let workouts = SwiftDataWorkoutRepository(modelContainer: container)
+    let exerciseId = UUID()
+    _ = try await exercises.create(ExerciseDTO(
+        id: exerciseId, name: "Bench", category: .strength,
+        metrics: metrics, defaultUnit: .lb, isCustom: true, createdAt: .now, updatedAt: .now
+    ))
+    let template = WorkoutDTO(
+        id: UUID(), name: "W",
+        entries: [WorkoutEntryDTO(id: UUID(), exerciseId: exerciseId, order: 0, targetSets: 3, targetReps: 8, targetWeight: 100, targetDuration: nil)],
+        createdAt: .now, updatedAt: .now
+    )
+    try await workouts.upsert(template)
+    let dto = SessionDTO(
+        id: UUID(), clientId: UUID(), startAt: .now, endAt: .now.addingTimeInterval(3600),
+        status: .scheduled, notes: nil, instances: [], seriesId: nil, recurrence: nil,
+        eventIdentifier: nil, createdAt: .now, updatedAt: .now
+    )
+    try await sessions.schedule(dto, attaching: [template.id])
+    let stored = try #require(try await sessions.get(id: dto.id))
+    let instance = try #require(stored.instances.first)
+    let vm = SessionRunViewModel(
+        sessionRepo: sessions, exerciseRepo: exercises, clientRepo: clients,
+        calendar: FakeCalendar(), session: stored, clientName: "C"
+    )
+    return SessionEnv(
+        sessions: sessions, exerciseId: exerciseId, instanceId: instance.id,
+        entry: try #require(instance.plannedEntries.first), vm: vm
+    )
+}
+
+@MainActor
+@Test func previousSetsLoadedPerExercise() async throws {
+    let env = try await makeSessionEnv()
+    try await env.sessions.recordSet(SetRecordDTO(
+        id: UUID(), workoutInstanceId: env.instanceId, exerciseId: env.exerciseId, setIndex: 0,
+        weight: 95, reps: 8, duration: nil, distance: nil, rpe: nil,
+        performedAt: .now, createdAt: .now, updatedAt: .now
+    ))
+
+    await env.vm.load()
+
+    #expect(env.vm.previousSets[env.exerciseId]?.weight == 95)
+    #expect(env.vm.plannedSetCount == 3)
+    #expect(env.vm.loggedSetCount == 1)
+    #expect(abs(env.vm.progress - 1.0 / 3.0) < 0.001)
+}
+
+@MainActor
+@Test func progressReflectsLoggedOverPlanned() async throws {
+    let env = try await makeSessionEnv()
+    await env.vm.load()
+    #expect(env.vm.progress == 0)
+    let draft = SetDraft(target: env.entry, metrics: [.weight, .reps])
+
+    for _ in 0..<3 {
+        await env.vm.record(draft: draft, instanceId: env.instanceId, exerciseId: env.exerciseId)
+    }
+    #expect(env.vm.loggedSetCount == 3)
+    #expect(env.vm.progress == 1.0)
+
+    // A fourth set beyond the plan never pushes progress past 100%.
+    await env.vm.record(draft: draft, instanceId: env.instanceId, exerciseId: env.exerciseId)
+    #expect(env.vm.sets(instanceId: env.instanceId, exerciseId: env.exerciseId).count == 4)
+    #expect(env.vm.progress == 1.0)
+}
+
+@MainActor
+@Test func recordDraftOmitsMetricsNotInExercise() async throws {
+    let env = try await makeSessionEnv(metrics: [.reps])
+    await env.vm.load()
+    #expect(env.vm.lastLoggedSetId == nil)
+    var draft = SetDraft(target: env.entry, metrics: [.weight, .reps])
+    draft.weight = 50
+    draft.reps = 8
+
+    await env.vm.record(draft: draft, instanceId: env.instanceId, exerciseId: env.exerciseId)
+
+    let stored = try #require(try await env.sessions.setsFor(instanceId: env.instanceId).first)
+    #expect(stored.weight == nil)
+    #expect(stored.reps == 8)
+    #expect(env.vm.errorMessage == nil)
+    #expect(env.vm.lastLoggedSetId != nil)
+}

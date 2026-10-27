@@ -8,6 +8,7 @@ final class WorkoutListViewModel {
     let exerciseRepo: any ExerciseRepository
     var workouts: [WorkoutDTO] = []
     var errorMessage: String?
+    var isLoading = false
 
     init(workoutRepo: any WorkoutRepository, exerciseRepo: any ExerciseRepository) {
         self.workoutRepo = workoutRepo
@@ -15,6 +16,8 @@ final class WorkoutListViewModel {
     }
 
     func load() async {
+        isLoading = true
+        defer { isLoading = false }
         do {
             workouts = try await workoutRepo.all()
         } catch {

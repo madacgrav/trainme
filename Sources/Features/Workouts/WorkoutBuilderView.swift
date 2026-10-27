@@ -30,23 +30,19 @@ struct WorkoutBuilderView: View {
                         Button {
                             editingEntryIndex = index
                         } label: {
-                            VStack(alignment: .leading) {
-                                Text(viewModel.exerciseNames[entry.exerciseId] ?? "Exercise")
-                                    .foregroundStyle(.primary)
-                                Text(targetSummary(entry, unit: viewModel.exerciseUnits[entry.exerciseId] ?? .lb))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
+                            TitleCaptionRow(
+                                title: viewModel.exerciseNames[entry.exerciseId] ?? "Exercise",
+                                caption: targetSummary(entry, unit: viewModel.exerciseUnits[entry.exerciseId] ?? .lb)
+                            )
                         }
+                        .buttonStyle(.plain)
                     }
                     .onMove { viewModel.move(from: $0, to: $1) }
                     .onDelete { viewModel.remove(at: $0) }
 
                     Button("Add exercise", systemImage: "plus") { showingPicker = true }
                 }
-                if let error = viewModel.errorMessage {
-                    Section { Text(error).foregroundStyle(.red) }
-                }
+                ErrorBanner(message: viewModel.errorMessage)
             }
             .navigationTitle(viewModel.isEditing ? "Edit Workout" : "New Workout")
             .navigationBarTitleDisplayMode(.inline)
@@ -63,6 +59,7 @@ struct WorkoutBuilderView: View {
                             }
                         }
                     }
+                    .buttonStyle(.borderedProminent)
                     .disabled(!viewModel.canSave)
                 }
             }
@@ -124,13 +121,9 @@ struct ExercisePickerView: View {
                     onPick(exercise)
                     dismiss()
                 } label: {
-                    VStack(alignment: .leading) {
-                        Text(exercise.name).foregroundStyle(.primary)
-                        Text(exercise.category.rawValue.capitalized)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    TitleCaptionRow(title: exercise.name, caption: exercise.category.rawValue.capitalized)
                 }
+                .buttonStyle(.plain)
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search exercises")
             .navigationTitle("Add Exercise")
@@ -159,13 +152,15 @@ struct EntryTargetEditView: View {
                 Section("Targets") {
                     OptionalStepper(label: "Sets", value: $entry.targetSets, range: 1...20, defaultValue: 3)
                     OptionalStepper(label: "Reps", value: $entry.targetReps, range: 1...100, defaultValue: 10)
-                    HStack {
-                        Text("Weight (\(WeightFormatter.label(unit)))")
-                        Spacer()
-                        TextField("—", value: $entry.targetWeight, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 90)
+                    AdaptiveLabeledRow(label: "Weight (\(WeightFormatter.label(unit)))") {
+                        MetricStepper(
+                            label: "Weight (\(WeightFormatter.label(unit)))",
+                            value: Binding(
+                                get: { entry.targetWeight ?? 0 },
+                                set: { entry.targetWeight = $0 > 0 ? $0 : nil }
+                            ),
+                            step: WeightFormatter.stepIncrement(for: unit)
+                        )
                     }
                     OptionalStepper(label: "Duration (sec)", value: $entry.targetDuration, range: 5...7200, defaultValue: 60, step: 5)
                 }
@@ -189,22 +184,55 @@ struct OptionalStepper: View {
     var step: Int = 1
 
     var body: some View {
-        HStack {
-            Text(label)
-            Spacer()
-            if let current = value {
-                Stepper("\(current)", value: Binding(
-                    get: { current },
-                    set: { value = $0 }
-                ), in: range, step: step)
-                .fixedSize()
-                Button("Clear", systemImage: "xmark.circle.fill") { value = nil }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.tertiary)
-            } else {
+        if let current = value {
+            AdaptiveLabeledRow(label: label) {
+                HStack(spacing: Theme.Spacing.xs) {
+                    MetricStepper(
+                        label: label,
+                        value: Binding(get: { Double(current) }, set: { value = Int($0) }),
+                        step: Double(step),
+                        range: Double(range.lowerBound)...Double(range.upperBound),
+                        fractionDigits: 0
+                    )
+                    IconButton(title: "Clear", systemImage: "xmark.circle.fill", tint: .tertiary) { value = nil }
+                }
+            }
+        } else {
+            HStack {
+                Text(label)
+                Spacer()
                 Button("Set") { value = defaultValue }
             }
         }
     }
+}
+
+/// Label beside its control when there is room; label above it at accessibility sizes.
+private struct AdaptiveLabeledRow<Control: View>: View {
+    let label: String
+    @ViewBuilder let control: () -> Control
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack {
+                Text(label)
+                Spacer()
+                control()
+            }
+            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                Text(label)
+                control()
+            }
+        }
+    }
+}
+
+#Preview("Builder") {
+    let repos = PreviewFixtures.repositories()
+    WorkoutBuilderView(workoutRepo: repos.workouts, exerciseRepo: repos.exercises, existing: PreviewFixtures.workout) {}
+}
+
+#Preview("Exercise picker") {
+    let repos = PreviewFixtures.repositories()
+    ExercisePickerView(repo: repos.exercises) { _ in }
 }
